@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use chrono::prelude::*;
 use uuid::Uuid;
 use sqlx::Pool;

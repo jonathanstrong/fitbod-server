@@ -51,8 +51,11 @@ pub enum NewWorkoutResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListWorkoutsRequest {
     pub user_id: Uuid,
+    #[serde(default)]
     pub start: Option<DateTime<Utc>>,
+    #[serde(default)]
     pub end: Option<DateTime<Utc>>,
+    #[serde(default)]
     pub limit: Option<usize>,
 }
 
@@ -66,10 +69,31 @@ pub struct ListWorkoutsItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListWorkoutsResponse {
     pub user_id: Uuid,
-    pub n: usize,
-    pub workouts: Vec<ListWorkoutsItem>,
+    pub n_items: usize,
+    pub items: Vec<ListWorkoutsItem>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "event_kind")]
+#[serde(rename_all = "snake_case")]
+pub enum Event {
+    NewWorkout(ListWorkoutsItem),
+    DopamineShot {
+        message: String
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubscribeEventsRequest {
+    pub user_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewEvents {
+    pub user_id: Uuid,
+    pub n_items: usize,
+    pub items: Vec<Event>,
+}
 
 pub fn get_hmac(secret: &[u8]) -> Hmac<Sha256> {
     Hmac::new(Sha256::new(), secret)
@@ -95,6 +119,7 @@ pub fn gen_secret_base64() -> String {
     out
 }
 
+#[allow(unused)]
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -6,14 +6,14 @@ CREATE schema public;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;                -- enables gen_random_uuid() function
 
 CREATE TABLE users (
-	user_id	    uuid NOT NULL UNIQUE
+    user_id     uuid NOT NULL UNIQUE
                 DEFAULT gen_random_uuid()
                 PRIMARY KEY,
 
-	email	    text NOT NULL UNIQUE
+    email       text NOT NULL UNIQUE
                 CHECK (length(email) > 0),
 
-	secret	    bytea NOT NULL                          -- used to sign requests
+    secret      bytea NOT NULL                          -- used to sign requests
                 DEFAULT gen_random_bytes(64)
                 CHECK (length(secret) > 0),
 
@@ -22,11 +22,11 @@ CREATE TABLE users (
 );
 
 CREATE INDEX users_email ON users USING hash (
-	email
+    email
 );
 
 CREATE TABLE workouts (
-	workout_id	uuid NOT NULL UNIQUE
+    workout_id  uuid NOT NULL UNIQUE
                 DEFAULT gen_random_uuid()
                 PRIMARY KEY,
 
@@ -42,12 +42,12 @@ CREATE TABLE workouts (
 );
 
 CREATE INDEX workouts_start_time ON workouts USING btree (
-	start_time	DESC
+    start_time  DESC
 );
 
 CREATE INDEX workouts_user_start_time ON workouts USING btree (
-	user_id,
-	start_time	DESC
+    user_id,
+    start_time  DESC
 );
 
 CREATE VIEW workout_durations AS
