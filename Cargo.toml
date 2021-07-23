@@ -3,13 +3,33 @@ name = "fitbod"
 version = "0.1.0"
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "fitbod"
+path = "src/lib.rs"
+
+[[bin]]
+name = "fitbod-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "generate-api-docs"
+path = "src/generate_api_docs.rs"
+required-features = ["tera"]
 
 [dependencies]
-uuid = { version = "0.8", features = ["v4"] }
+uuid = { version = "0.8", features = ["v4", "serde"] }
 base64 = "0.13"
 rust-crypto = "0.2"
 warp = "0.3"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "json"] }
+chrono = { version = "0.4", features = ["serde"] }
+hashbrown = "0.11" 
+dotenv = "0.15"
+tera = { version = "1", optional = true }
+rand = "0.8"
+
+[features]
+default = []
