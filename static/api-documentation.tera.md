@@ -11,110 +11,68 @@ $ cargo run --bin generate-api-docs --features tera
 `generate-api-docs` generates JSON and other examples and renders a template (`static/api-documentation.tera.md`)
 using those outputs.
 
-## schema
-
-postgresql-flavored database schema:
-
-```sql
-{{ schema_sql }}
-```
-
-#### syncronization between api server and database (important)
-
-Api server is not designed to remain perfectly in sync if database is modified by external services. the server will store (i.e. cache)
-a good deal of application data in memory during its operation, updating that state as new data arrives via http requests. It does
-not pull data from database on every request, only if it is needed.
-
-New data is always written immediately to the database, so the database can be expected to be in sync with api server for reading
-at all times.
-
-To force the api server to be in sync with database, restart the api server, which will result in reading everything fresh from
-database during initialization.
-
-There is no anticipated risk of data corruption or other serious problems from modifying the database externally to the 
-api server, just that the api server could respond with stale data in that case (relative to the database).
-
 ## authentication
 
-Using cryptographic key embedded in mobile app, client must sign api requests to authenticate them.
+The authentication process used here is realistic but does not contain all of the component parts that would be required.
 
-(Note: this is meant to mimic real-world scenario, not sure if it lines up exactly).
+#### Authentication steps assumed to be in place
+
+- Client generates a ed25519 (private key, public key) pair, and stores its private key on the mobile device
+- Client negotiates registering with server, sending public key, server stores entry in users table connecting
+  `user_id` uuid to public key
+
+#### Authentication steps included in this codebase
+
+- Using cryptographic key stored on mobile device, client signs api requests 
+- Server stores public key for each user, and verifies signatures of signed api requests
 
 #### Signing a Request
 
+Signature is generated from a unix timestamp in decimal (i.e. string) form combined with the request body (just
+the body, does not include HTTP headers).
+
+Both timestamp and base64-encoded signature should be included as HTTP headers included with the request.
+
 The request signature is a sha256 HMAC of the request body, using the client's secret key, encoded with standard base64.
 
-Signature should be included as `{{ sig_header }}` HTTP header in the request:
+Signature should be included as `{{ sig_header }}` HTTP header in the request, and the timestamp used should be included
+as `{{ timestamp_header }}` HTTP header:
 
 ```
 POST /api/{{api_version}}/workouts/list HTTP/1.1
 host: fitbod.me
 content-type: application/json
-{{ sig_header }}: Fn7nQsY3UqVKVr1kL7O+yP7J7WSM660oaNbSq42Vy7A=
-content-length: {{ list_req_json | length }}
+content-length: 50
+{{ sig_header }}: XoWLlSwjjApTAbSYfK85w0ljbfKlNP7Chb/MsWUMnBXU3sT3JtHALzfc0h9e3DElYejutmXrLiR54lz3FJgfCQ==
+{{ timestamp_header }}: 1627062582
 
-{{ list_req_json }}
+{"user_id":"3a2cbc79-00e5-4598-a5b2-74c5059724af"}
 ```
 
 Rust example of signing a request:
 
 ```rust
-use crypto::hmac::Hmac;
-use crypto::sha2::Sha256;
-use crypto::mac::Mac;
+let priv_key_encoded = "jCNLYN8zGyiVM7omRHGlY1iyJuvAZBWZGuN+9TjaWJTSzZ3oEvXq7QNHTwwD785/rBnmRCPkl2D68lRyvBWHUg==";
+let priv_key = base64::decode(priv_key_encoded.as_bytes()).unwrap();
+assert_eq!(priv_key.len(), 64);
 
-let secret = "6KQ1CMZGFP84mJoip2crsGw5HpBhctnQ6Zkpj4/pVEqx/enTKvvwjpp57Nq7JS9gqjxyM1PtXcEHJxC0gag+dA==";
-let secret_decoded = base64::decode_config(secret.as_bytes(), base64::STANDARD).unwrap();
-let mut hmac = Hmac::new(Sha256::new(), &secret_decoded);
-let request_body = r#"{"user_id":"3a2cbc79-00e5-4598-a5b2-74c5059724af","kind":"ping"}"#;
-let mut buf = [0u8; 1024];
-let sig_length = crate::sign_request(request_body.as_bytes(), &mut hmac, &mut buf[..]);
-let sig = &buf[..sig_length]; // -> Fn7nQsY3UqVKVr1kL7O+yP7J7WSM660oaNbSq42Vy7A=
+let unix_timestamp = "1627062582";
+let request_body = r#"{"user_id":"3a2cbc79-00e5-4598-a5b2-74c5059724af"}"#;
+
+let signature_contents = format!("{}{}", unix_timestamp, request_body);
+let sig = crypto::ed25519::signature(signature_contents.as_bytes(), &priv_key[..]);
+let sig_encoded = base64::encode(&sig[..]);
+let sig_header = format!("{{ sig_header}}: {}", sig_encoded);
+let timestamp_header = format!("{{ timestamp_header}}: {}", unix_timestamp);
+
+// to verify sig
+let pub_key = &priv_key[32..]; // this will be retrieved from users table in actual application code
+assert!( crypto::ed25519::verify(signature_contents.as_bytes(), pub_key, &sig[..]) );
 ```
 
-The body of `sign_request` is:
+The above example is also included in code as an automated test (`check_ed25519_sig_example_in_api_docs`).
 
-```rust
-pub fn sign_request(body: &[u8], hmac: &mut Hmac<Sha256>, buf: &mut [u8]) -> usize {
-    hmac.reset();
-    hmac.input(body);
-    base64::encode_config_slice(hmac.result().code(), base64::STANDARD, buf)
-}
-```
-
-Note: the "secret" column in the "users" table of the database stores the key as raw bytes. In the example below, the
-initial representation of `secret` is base64-encoded so it can be represented as a string and displayed. Decoding from
-base64 to raw bytes is not required when using the raw bytes retrieved from the "users" table.
-
-Javascript example of signing a request:
-
-```javascript
-var crypto = require('crypto');
-
-var body = JSON.stringify({
-    user_id: '3a2cbc79-00e5-4598-a5b2-74c5059724af',
-    kind: 'ping',
-});
-
-var secret = "6KQ1CMZGFP84mJoip2crsGw5HpBhctnQ6Zkpj4/pVEqx/enTKvvwjpp57Nq7JS9gqjxyM1PtXcEHJxC0gag+dA==";
-
-// decode base64-encoded secret to raw bytes
-var key = Buffer.from(secret, 'base64');
-
-// create a sha256 hmac with the secret
-var hmac = crypto.createHmac('sha256', key);
-
-// sign the require message with the hmac
-// and finally base64 encode the result
-var sig = hmac.update(body).digest('base64'); // -> Fn7nQsY3UqVKVr1kL7O+yP7J7WSM660oaNbSq42Vy7A=
-```
-
-## JSON representation notes
-
-- **datetime:** datetimes are represented as strings with RFC3339 format (e.g. "2021-07-23T05:58:44.867020774Z")
-- **uuid:** uuids are represented as 36-character strings (standard string representation of uuid, e.g. "7bfe4f31-bbdb-4fd5-88d9-8ba161db8e18")
-
-## endpoints
+## Api Endpoints
 
 #### HTTP Request: `POST /api/{{api_version}}/workouts/new`
 
@@ -156,6 +114,8 @@ Retrieve a list of most recent workouts, with optional filter parameters.
 - specifying `start` will return only workouts that occured at or after `start`
 - specifying `end` will return only workouts that occured before `end`
 - specifying `limit` will return only the last (most recent) *n* entries
+- for `start` and `end` parameters, datetimes should be represented as strings in RFC3339
+  format (e.g. "2021-07-23T05:58:44.867020774Z")
 
 **JSON Request Body Example:**
 
@@ -212,3 +172,25 @@ Dopamine shot (encouraging message in alerts panel):
 {{dopamine_shot_json}}
 ```
 
+## schema
+
+postgresql-flavored database schema:
+
+```sql
+{{ schema_sql }}
+```
+
+#### syncronization between api server and database (important)
+
+Api server is not designed to remain perfectly in sync if database is modified by external services. The server stores (i.e. caches)
+a good deal of application data in memory during its operation, updating that state as new data arrives via http requests. It does
+not pull data from database on every request, only if it is needed.
+
+New data is always written immediately to the database, so the database can be expected to be in sync with api server for reading
+at all times.
+
+To force the api server to be in sync with database, restart the api server, which will result in reading everything fresh from
+database during initialization.
+
+There is no anticipated risk of data corruption or other serious problems from modifying the database externally to the 
+api server, just that the api server could respond with stale data in that case (relative to the database).

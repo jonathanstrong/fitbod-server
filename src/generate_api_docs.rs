@@ -16,6 +16,7 @@ fn main() -> Result<(), io::Error> {
     ctx.insert("current_time", &current_time);
     ctx.insert("api_version", API_VERSION);
     ctx.insert("sig_header", SIG_HEADER);
+    ctx.insert("timestamp_header", TIMESTAMP_HEADER);
     ctx.insert("schema_sql", SCHEMA_SQL);
 
     let user_id = Uuid::new_v4();
@@ -42,21 +43,6 @@ fn main() -> Result<(), io::Error> {
     let new_workout_err_resp = NewWorkoutResponse::Error { workout_id, err_code: 123, msg: "short message describing error".to_string() };
     let new_workout_err_resp_json = serde_json::to_string_pretty(&new_workout_err_resp).unwrap();
     ctx.insert("new_workout_err_resp_json", &new_workout_err_resp_json);
-
-    // use crypto::hmac::Hmac;
-    // use crypto::sha2::Sha256;
-    // use crypto::mac::Mac;
-    // let example_secret: &str = "private key 64 bytes in length";
-    // let example_secret: String = fitbod::gen_secret_base64();
-    // let example_secret_decoded = base64::decode_config(example_secret.as_bytes(), base64::STANDARD).unwrap();
-    // let mut hmac = Hmac::new(Sha256::new(), &example_secret_decoded[..]);
-    // let request_body = format!("{{\"user_id\": \"{}\", \"kind\": \"ping\"}}", user_id);
-    // let mut buf = [0u8; 1024];
-    // let n_bytes = sign_request(request_body.as_bytes(), &mut hmac, &mut buf[..]);
-    // let sig = std::str::from_utf8(&buf[..n_bytes]).unwrap();
-    // ctx.insert("sig_example_secret", &example_secret);
-    // ctx.insert("sig_example_request_body", &request_body);
-    // ctx.insert("sig_example_output", &sig);
 
     let list_req = ListWorkoutsRequest {
         user_id,
