@@ -96,6 +96,17 @@ pub struct NewEvents {
     pub items: Vec<Event>,
 }
 
+impl<'a> From<&'a Workout> for ListWorkoutsItem {
+    fn from(workout: &'a Workout) -> Self {
+        let &Workout { workout_id, start_time: start, end_time: end, .. } = workout;
+        Self {
+            workout_id,
+            date: start.date().naive_local(),
+            duration_minutes: ((end - start).num_seconds() as f64 / 60.0).round() as u32,
+        }
+    }
+}
+
 type PrivateKey     = [u8; 64];
 type PublicKey      = [u8; 32];
 
