@@ -7,7 +7,7 @@ use crypto::mac::Mac;
 use fitbod::*;
 
 const API_DOCS_TEMPLATE: &str = include_str!("../static/api-documentation.tera.md");
-const OUTPUT_PATH: &str = "./api-documentation.md";
+const OUTPUT_PATH: &str = "./README.md";
 
 fn main() -> Result<(), io::Error> {
     let mut tera = tera::Tera::default();
