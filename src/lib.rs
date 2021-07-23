@@ -106,23 +106,42 @@ pub fn gen_keypair() -> (PrivateKey, PublicKey) {
     crypto::ed25519::keypair(&seed[..])
 }
 
-pub fn verify_request(sig: &str, timestamp: &str, body: &str, pub_key: &[u8], buf: &mut Vec<u8>) -> bool {
+pub fn verify_request(sig: &[u8], timestamp: &[u8], body: &[u8], pub_key: &[u8], buf: &mut Vec<u8>) -> bool {
     buf.clear();
-    buf.extend_from_slice(timestamp.as_bytes());
-    buf.extend_from_slice(body.as_bytes());
+    buf.extend_from_slice(timestamp);
+    buf.extend_from_slice(body);
     let n = buf.len();
-    if let Err(_) = base64::decode_config_buf(sig.as_bytes(), base64::STANDARD, buf) {
+    if let Err(_) = base64::decode_config_buf(sig, base64::STANDARD, buf) {
         return false
     }
     let msg = &buf[..n];
     let decoded_sig = &buf[n..];
 
     debug_assert_eq!(msg.len(), timestamp.len() + body.len());
-    debug_assert_eq!(pub_key.len(), 64);
+    debug_assert_eq!(pub_key.len(), 32);
     debug_assert_eq!(decoded_sig.len(), 64);
 
     crypto::ed25519::verify(msg, pub_key, decoded_sig)
 }
+
+pub trait UserId {
+    fn user_id(&self) -> Uuid;
+}
+
+macro_rules! impl_user_id {
+    ($t:ty) => {
+        impl UserId for $t {
+            fn user_id(&self) -> Uuid {
+                self.user_id
+            }
+        }
+    }
+}
+
+impl_user_id!(User);
+impl_user_id!(Workout);
+impl_user_id!(SubscribeEventsRequest);
+impl_user_id!(ListWorkoutsRequest);
 
 #[allow(unused)]
 #[cfg(test)]
@@ -136,7 +155,8 @@ mod tests {
         let priv_key = base64::decode(priv_key_encoded.as_bytes()).unwrap();
         assert_eq!(priv_key.len(), 64);
         let unix_timestamp = "1627062582";
-        let request_body = r#"{"user_id":"3a2cbc79-00e5-4598-a5b2-74c5059724af"}"#;
+        //let request_body = r#"{"user_id":"3a2cbc79-00e5-4598-a5b2-74c5059724af"}"#;
+        let request_body = r#"{"user_id":"1fe9e4f0-8cd1-46be-963a-7f51470db6af"}"#;
         assert_eq!(request_body.len(), 50);
         let signature_contents = format!("{}{}", unix_timestamp, request_body);
         let sig = crypto::ed25519::signature(signature_contents.as_bytes(), &priv_key[..]);
@@ -144,9 +164,12 @@ mod tests {
         let sig_header = format!("{}: {}", SIG_HEADER, encoded_sig);
         let timestamp_header = format!("{}: {}", TIMESTAMP_HEADER, unix_timestamp);
         let pub_key = &priv_key[32..]; // this will be retrieved from users table in actual application code
+        println!("{}", sig_header);
+        println!("{}", request_body);
         assert!( crypto::ed25519::verify(signature_contents.as_bytes(), pub_key, &sig[..]) );
         let mut buf = Vec::new();
-        assert!( verify_request(&encoded_sig, unix_timestamp, request_body, pub_key, &mut buf) );
+        assert!( verify_request(encoded_sig.as_bytes(), unix_timestamp.as_bytes(), request_body.as_bytes(), pub_key, &mut buf) );
+        assert!(false);
     }
 
     #[test]

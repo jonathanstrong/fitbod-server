@@ -33,8 +33,6 @@ the body, does not include HTTP headers).
 
 Both timestamp and base64-encoded signature should be included as HTTP headers included with the request.
 
-The request signature is a sha256 HMAC of the request body, using the client's secret key, encoded with standard base64.
-
 Signature should be included as `{{ sig_header }}` HTTP header in the request, and the timestamp used should be included
 as `{{ timestamp_header }}` HTTP header:
 

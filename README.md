@@ -1,6 +1,6 @@
 # fitbod api takehome
 
-*Generated Fri, 23 Jul 2021 18:39:10 +0000*
+*Generated Fri, 23 Jul 2021 22:24:40 +0000*
 
 ## how to generate this document
 
@@ -32,8 +32,6 @@ Signature is generated from a unix timestamp in decimal (i.e. string) form combi
 the body, does not include HTTP headers).
 
 Both timestamp and base64-encoded signature should be included as HTTP headers included with the request.
-
-The request signature is a sha256 HMAC of the request body, using the client's secret key, encoded with standard base64.
 
 Signature should be included as `x-fitbod-access-signature` HTTP header in the request, and the timestamp used should be included
 as `x-fitbod-access-timestamp` HTTP header:
@@ -86,10 +84,10 @@ multiple requests. Distinct `workout_id` values will result in multiple workouts
 ```json
 [
   {
-    "workout_id": "1d10e7da-33cf-4f5a-a0bc-5f1aa31a0e1e",
-    "user_id": "3de70629-efa7-4bb7-a79d-1f8577748cab",
-    "start_time": "2021-07-23T18:39:10.615929551Z",
-    "end_time": "2021-07-23T19:34:10.615929551Z"
+    "workout_id": "2d6cb117-741d-4ea3-baca-37391232e649",
+    "user_id": "ec90c5c1-541a-45be-8a4c-072673823c1a",
+    "start_time": "2021-07-23T22:24:40.773992610Z",
+    "end_time": "2021-07-23T23:19:40.773992610Z"
   }
 ]
 ```
@@ -102,7 +100,7 @@ multiple requests. Distinct `workout_id` values will result in multiple workouts
 [
   {
     "result": "success",
-    "workout_id": "1d10e7da-33cf-4f5a-a0bc-5f1aa31a0e1e"
+    "workout_id": "2d6cb117-741d-4ea3-baca-37391232e649"
   }
 ]
 ```
@@ -118,7 +116,7 @@ multiple requests. Distinct `workout_id` values will result in multiple workouts
 ```json
 {
   "result": "error",
-  "workout_id": "1d10e7da-33cf-4f5a-a0bc-5f1aa31a0e1e",
+  "workout_id": "2d6cb117-741d-4ea3-baca-37391232e649",
   "err_code": 123,
   "msg": "short message describing error"
 }
@@ -138,9 +136,9 @@ Retrieve a list of most recent workouts, with optional filter parameters.
 
 ```json
 {
-  "user_id": "3de70629-efa7-4bb7-a79d-1f8577748cab",
-  "start": "2021-07-02T18:39:10.616051606Z",
-  "end": "2021-07-23T18:39:10.616054936Z",
+  "user_id": "ec90c5c1-541a-45be-8a4c-072673823c1a",
+  "start": "2021-07-02T22:24:40.774113822Z",
+  "end": "2021-07-23T22:24:40.774116894Z",
   "limit": 10
 }
 ```
@@ -149,7 +147,7 @@ Optional fields: `start`, `end`, `limit`:
 
 ```json
 {
-  "user_id": "3de70629-efa7-4bb7-a79d-1f8577748cab",
+  "user_id": "ec90c5c1-541a-45be-8a4c-072673823c1a",
   "start": null,
   "end": null,
   "limit": null
@@ -160,7 +158,7 @@ Optional fields may also be omitted:
 
 ```json
 {
-  "user_id": "3de70629-efa7-4bb7-a79d-1f8577748cab"
+  "user_id": "ec90c5c1-541a-45be-8a4c-072673823c1a"
 }
 ```
 
@@ -168,11 +166,11 @@ Optional fields may also be omitted:
 
 ```json
 {
-  "user_id": "3de70629-efa7-4bb7-a79d-1f8577748cab",
+  "user_id": "ec90c5c1-541a-45be-8a4c-072673823c1a",
   "n_items": 1,
   "items": [
     {
-      "workout_id": "1d10e7da-33cf-4f5a-a0bc-5f1aa31a0e1e",
+      "workout_id": "2d6cb117-741d-4ea3-baca-37391232e649",
       "date": "2021-07-23",
       "duration_minutes": 55
     }
@@ -195,7 +193,7 @@ To unsubscribe, simply close the websocket connection.
 
 ```json
 {
-  "user_id": "3de70629-efa7-4bb7-a79d-1f8577748cab"
+  "user_id": "ec90c5c1-541a-45be-8a4c-072673823c1a"
 }
 ```
 
@@ -205,12 +203,12 @@ New workout:
 
 ```json
 {
-  "user_id": "3de70629-efa7-4bb7-a79d-1f8577748cab",
+  "user_id": "ec90c5c1-541a-45be-8a4c-072673823c1a",
   "n_items": 1,
   "items": [
     {
       "event_kind": "new_workout",
-      "workout_id": "1d10e7da-33cf-4f5a-a0bc-5f1aa31a0e1e",
+      "workout_id": "2d6cb117-741d-4ea3-baca-37391232e649",
       "date": "2021-07-23",
       "duration_minutes": 55
     }
@@ -222,7 +220,7 @@ Dopamine shot (encouraging message in alerts panel):
 
 ```json
 {
-  "user_id": "3de70629-efa7-4bb7-a79d-1f8577748cab",
+  "user_id": "ec90c5c1-541a-45be-8a4c-072673823c1a",
   "n_items": 1,
   "items": [
     {
