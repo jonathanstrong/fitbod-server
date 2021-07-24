@@ -25,7 +25,11 @@ pub struct Workout {
 }
 
 /// an api request to save a workout to the database
-pub type NewWorkoutRequest = Workout; // api request is identical to schema representation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewWorkoutsRequest {
+    pub user_id: Uuid,
+    pub items: Vec<Workout>,
+}
 
 /// api response to a `NewWorkoutRequest`
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -153,6 +157,7 @@ impl_user_id!(User);
 impl_user_id!(Workout);
 impl_user_id!(SubscribeEventsRequest);
 impl_user_id!(ListWorkoutsRequest);
+impl_user_id!(NewWorkoutsRequest);
 
 #[allow(unused)]
 #[cfg(test)]

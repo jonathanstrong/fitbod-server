@@ -9,7 +9,7 @@ use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 use pretty_toa::ThousandsSep;
 use hashbrown::HashMap;
-use sqlx::Pool;
+use sqlx::{Pool, Executor};
 use sqlx::postgres::Postgres;
 use crypto::hmac::Hmac;
 use crypto::sha2::Sha256;
@@ -17,10 +17,11 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Runtime;
 use warp::{Filter, Rejection, Reply, filters::path::FullPath};
 use http::StatusCode;
-use fitbod::{Workout, ListWorkoutsRequest, ListWorkoutsResponse, ListWorkoutsItem, User, UserId};
+use fitbod::{Workout, ListWorkoutsRequest, ListWorkoutsResponse,
+    ListWorkoutsItem, User, UserId, NewWorkoutResponse, NewWorkoutsRequest};
 
 type UserKeys = Arc<RwLock<HashMap<Uuid, [u8; 32]>>>;
-type UserWorkouts = Arc<RwLock<HashMap<Uuid, BTreeMap<DateTime<Utc>, Workout>>>>;
+type UserWorkouts = Arc<RwLock<HashMap<Uuid, BTreeMap<DateTime<Utc>, Vec<Workout>>>>>;
 
 // /// used to extract user_id from json body
 //#[derive(Debug, Clone, Copy, Deserialize)]
@@ -131,6 +132,92 @@ fn check_sig<T>(keys: &UserKeys, req: &http::Request<bytes::Bytes>) -> Result<T,
     Ok::<T, ErrorMsg>(parsed_body)
 }
 
+async fn insert_workouts(
+    req: &[Workout],
+    workouts: &UserWorkouts,
+    pool: &Pool<Postgres>,
+) -> Vec<NewWorkoutResponse> {
+    if req.is_empty() { return vec![] }
+
+    let user_id = req[0].user_id;
+
+    assert!(req.iter().skip(1).all(|x| x.user_id == user_id));
+
+    let mut to_insert = Vec::new();
+    let mut results = Vec::new();
+
+    {
+        let mut lock = workouts.write().unwrap();
+        let cache = lock.entry(user_id)
+            .or_default();
+
+        for workout in req {
+            let exists = cache.get(&workout.start_time)
+                .map(|xs| xs.iter().any(|x| workout.workout_id == x.workout_id))
+                .unwrap_or(false);
+
+            if exists {
+                results.push(NewWorkoutResponse::Success { workout_id: workout.workout_id });
+            } else {
+                cache.entry(workout.start_time)
+                    .or_default()
+                    .push(workout.clone());
+                to_insert.push((workout.user_id, workout.workout_id, workout.start_time, workout.end_time));
+            }
+        }
+    }
+
+    let mut tx = match pool.begin().await {
+        Ok(tx) => tx,
+        Err(e) => {
+            results.extend({
+                to_insert.iter().map(|x| {
+                    NewWorkoutResponse::Error {
+                        workout_id: x.1,
+                        err_code: 501,
+                        msg: format!("failed to create database transaction: {}", e),
+                    }
+                })
+            });
+            return results
+        }
+    };
+
+    for &(uid, wid, start, end) in &to_insert {
+        tx.execute(
+            sqlx::query(
+                "insert into workouts (user_id, workout_id, start_time, end_time) values ($1, $2, $3, $4)"
+            )
+                .bind(uid)
+                .bind(wid)
+                .bind(start)
+                .bind(end)
+        ).await.unwrap();
+    }
+
+    match tx.commit().await {
+        Ok(_) => {
+            results.extend({
+                to_insert.iter().map(|x| {
+                    NewWorkoutResponse::Success { workout_id: x.1 }
+                })
+            });
+        }
+        Err(e) => {
+            results.extend({
+                to_insert.iter().map(|x| {
+                    NewWorkoutResponse::Error {
+                        workout_id: x.1,
+                        err_code: 502,
+                        msg: format!("database insert transaction failed: {}", e),
+                    }
+                })
+            });
+        }
+    };
+    results
+}
+
 async fn fetch_workouts(
     req: &ListWorkoutsRequest,
     workouts: &UserWorkouts,
@@ -144,7 +231,9 @@ async fn fetch_workouts(
         .into_iter()
         .flat_map(|kv| {
             kv.range(start .. end)
-                .map(|(_, v)| ListWorkoutsItem::from(v))
+                .flat_map(|(_, vs)| {
+                    vs.iter().map(|v| ListWorkoutsItem::from(v))
+                })
         })
         .rev()
         .take(limit)
@@ -170,12 +259,14 @@ async fn fetch_workouts(
 
     let items: Vec<_> = workout_rows.into_iter()
         .map(|(workout_id, start, end)| {
-            entry.insert(start, Workout {
-                user_id: req.user_id,
-                workout_id,
-                start_time: start,
-                end_time: end,
-            });
+            entry.entry(start)
+                .or_default()
+                .push(Workout {
+                    user_id: req.user_id,
+                    workout_id,
+                    start_time: start,
+                    end_time: end,
+                });
 
             ListWorkoutsItem {
                 workout_id,
@@ -225,9 +316,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         {
             let mut workouts = workouts.write().unwrap();
             for (user_id, workout_id, start_time, end_time) in workouts_from_recently_active_users {
-                //workouts.entry(user_id)
-                //    .or_default()
-                //    .insert(start_time, Workout { user_id, workout_id, start_time, end_time });
+                workouts.entry(user_id)
+                    .or_default()
+                    .entry(start_time)
+                    .or_default()
+                    .push(Workout { user_id, workout_id, start_time, end_time });
             }
         }
 
@@ -251,17 +344,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let api_routes = warp::path("api")
             .and(warp::path("v1"))
             .and(warp::post())
-            .and(required_headers);
+            .and(required_headers)
+            .and(get_keys)
+            .and(get_workouts)
+            .and(get_pool);
 
-        let list_workouts = api_routes
+        let list_workouts = api_routes.clone()
             .and(warp::path("workouts"))
             .and(warp::path("list"))
             .and(http_request())
-            .and(get_keys)
-            .and(get_workouts)
-            .and(get_pool)
-            .and_then(|_, req, keys, workouts, pool| async move { //-> Result<ListWorkoutsResponse, ErrorMsg> {
-                //let keys = keys.clone();
+            .and_then(|_, keys, workouts, pool, req| async move {
                 match check_sig::<ListWorkoutsRequest>(&keys, &req) {
                     Ok(list_req) => {
                         let items = fetch_workouts(&list_req, &workouts, &pool)
@@ -278,39 +370,24 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     Err(e) => Err(warp::reject::custom(e))
                 }
             });
-            
-            //.and(warp::body::json())
-            //.map(move |sig, ts, req: ListWorkoutsRequest| {
-            //    match keys.read().unwrap().get(&req.user_id) {
-            //        Some(key) => {
-            //            format!("sig = {}, ts = {}, req = {:?}", sig, ts, req)
-            //        }
 
-            //        None => { // user not found
-            //            //warp::reject::custom(UserNotFound(req.user_id))
-            //            "unauthorized".to_string()
-            //        }
-            //    }
-            //});
+        let new_workouts = api_routes
+            .and(warp::path("workouts"))
+            .and(warp::path("new"))
+            .and(http_request())
+            .and_then(|_, keys, workouts, pool, req| async move {
+                match check_sig::<NewWorkoutsRequest>(&keys, &req) {
+                    Ok(req) => {
+                        let results = insert_workouts(&req.items, &workouts, &pool).await;
+                        Ok(warp::reply::json(&results))
+                    }
 
-            //.and_then(|sig, ts, body: bytes::Bytes| -> {
-            //    serde_json::from_slice::<UserId>(&body.slice(..))
-            //        .map_err(|e| warp::reject::custom(ParseError(format!("parsing json failed: {}", e))))
-            //        .and_then(|UserId { user_id }| {
-            //            match keys.read().unwrap().get(&user_id) {
-            //                Some(key) => {
-            //                    Ok(warp::reply::html("authorized"))
-            //                }
+                    Err(e) => Err(warp::reject::custom(e)),
+                }
+            });
+           
+        let routes = list_workouts.or(new_workouts);
 
-            //                None => { // user not found
-            //                    Err(warp::reject::custom(UserNotFound(user_id)))
-            //                }
-            //            }
-            //        })
-            //    //format!("sig = {}, ts = {}", sig, ts)
-            //});
-
-        let routes = list_workouts;
         warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
     });
 

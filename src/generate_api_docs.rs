@@ -28,9 +28,12 @@ fn main() -> Result<(), io::Error> {
 
     let new_workout_req = NewWorkoutRequest {
         user_id,
-        workout_id,
-        start_time,
-        end_time,
+        items: vec![Workout {
+            user_id,
+            workout_id,
+            start_time,
+            end_time,
+        ],
     };
 
     let new_workout_req_json = serde_json::to_string_pretty(&[new_workout_req]).unwrap();
