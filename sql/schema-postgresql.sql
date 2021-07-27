@@ -39,7 +39,9 @@ CREATE TABLE workouts (
 
     CONSTRAINT workouts_user_fkey FOREIGN KEY (user_id)
         REFERENCES users (user_id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT user_start_uniq UNIQUE(user_id, start_time) -- prevent duplicate start_time entries for given user, application code assumes this condition
 );
 
 CREATE INDEX workouts_start_time ON workouts USING btree (

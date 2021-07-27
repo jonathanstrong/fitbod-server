@@ -1,39 +1,11 @@
-#![allow(unused_imports)]
-
 use std::time::*;
-use std::sync::{Arc, RwLock};
-use std::collections::BTreeMap;
-use std::convert::{TryInto, Infallible};
 use chrono::prelude::*;
 use serde::{Serialize, Deserialize};
-use uuid::Uuid;
+use itertools::Itertools;
 use pretty_toa::ThousandsSep;
-use hashbrown::HashMap;
-use sqlx::{Pool, Executor};
-use sqlx::postgres::Postgres;
-use crypto::hmac::Hmac;
-use crypto::sha2::Sha256;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Runtime;
-use warp::{Filter, Rejection, Reply, filters::path::FullPath};
-use http::StatusCode;
-use fitbod::{Workout, ListWorkoutsRequest, ListWorkoutsResponse,
-    ListWorkoutsItem, User, UserId, NewWorkoutResponse, NewWorkoutsRequest};
-
-type UserKeys = Arc<RwLock<HashMap<Uuid, [u8; 32]>>>;
-type UserWorkouts = Arc<RwLock<HashMap<Uuid, BTreeMap<DateTime<Utc>, Vec<Workout>>>>>;
-
-// /// used to extract user_id from json body
-//#[derive(Debug, Clone, Copy, Deserialize)]
-//struct UserId {
-//    pub user_id: Uuid,
-//}
-
-#[derive(Debug, Clone, Copy)]
-struct UserNotFound(Uuid);
-
-#[derive(Debug, Clone)]
-struct ParseError(String);
+use warp::{Filter, Rejection, filters::path::FullPath};
+use fitbod::{Workout, ListWorkoutsRequest, ListWorkoutsResponse, NewWorkoutsRequest};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ErrorMsg {
@@ -41,27 +13,25 @@ struct ErrorMsg {
     error: String,
 }
 
-impl warp::reject::Reject for UserNotFound {}
-impl warp::reject::Reject for ParseError {}
 impl warp::reject::Reject for ErrorMsg {}
 
-async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
-    let code;
-    let message;
-    if let Some(UserNotFound(user_id)) = err.find() {
-        code = StatusCode::UNAUTHORIZED;
-        message = format!("user_id not found: {}", user_id);
-    } else {
-        code = StatusCode::NOT_FOUND;
-        message = "not found".to_string();
-    };
-    let json = warp::reply::json(&ErrorMsg {
-        status: code.as_u16(),
-        error: message,
-    });
-
-    Ok(warp::reply::with_status(json, code))
-}
+// async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
+//     let code;
+//     let message;
+//     if let Some(UserNotFound(user_id)) = err.find() {
+//         code = StatusCode::UNAUTHORIZED;
+//         message = format!("user_id not found: {}", user_id);
+//     } else {
+//         code = StatusCode::NOT_FOUND;
+//         message = "not found".to_string();
+//     };
+//     let json = warp::reply::json(&ErrorMsg {
+//         status: code.as_u16(),
+//         error: message,
+//     });
+// 
+//     Ok(warp::reply::with_status(json, code))
+// }
 
 fn http_request() -> impl Filter<Extract = (http::Request<bytes::Bytes>,), Error = Rejection> + Copy {
     warp::any()
@@ -92,282 +62,131 @@ fn http_request() -> impl Filter<Extract = (http::Request<bytes::Bytes>,), Error
         })
 }
 
-fn check_sig<T>(keys: &UserKeys, req: &http::Request<bytes::Bytes>) -> Result<T, ErrorMsg> //impl Filter<Extract = (T,), Error = Rejection> //+ Copy
-    where for<'de> T: serde::de::Deserialize<'de>,
-          T: UserId
-{
-    let parsed_body: T = serde_json::from_slice(&req.body().slice(..))
-        .map_err(|e| ErrorMsg { status: 400, error: format!("failed to parse json body: {}", e) })?;
-    if req.headers().get("x-fitbod-god-mode").is_some() {
-        return Ok::<T, ErrorMsg>(parsed_body)
+async fn init_cache(cache: &fitbod::cache::Cache, db: &fitbod::db::DataBase) {
+    let init_start = Instant::now();
+    let user_keys = db.fetch_user_keys().await.unwrap();
+    let n_users = user_keys.len();
+    for (user_id, key) in user_keys {
+        cache.insert_key(user_id, key);
     }
-    let user_id = parsed_body.user_id();
-    let sig = req.headers().get(fitbod::SIG_HEADER)
-        .and_then(|x| x.to_str().ok())
-        .ok_or_else(|| {
-            eprintln!("retrieving signature header failed: {}", user_id);
-            ErrorMsg { status: 400, error: format!("missing header: {}", fitbod::SIG_HEADER) }
-        })?;
-
-    let timestamp = req.headers().get(fitbod::TIMESTAMP_HEADER)
-        .and_then(|x| x.to_str().ok())
-        .ok_or_else(|| ErrorMsg { status: 400, error: format!("missing header: {}", fitbod::TIMESTAMP_HEADER) })?;
-
-    let key: [u8; 32] = keys.read().unwrap()
-        .get(&user_id)
-        .cloned()
-        .ok_or_else(|| {
-            eprintln!("user not found: {}", user_id);
-            ErrorMsg { status: 401, error: "authentication failed".into() }
-        })?;
-
-    let mut buf = Vec::with_capacity(1024);
-
-    if ! fitbod::verify_request(sig.as_bytes(), timestamp.as_bytes(), &req.body().slice(..), &key[..], &mut buf) {
-        eprintln!("verify_request failed: {}", user_id);
-        return Err(ErrorMsg { status: 401, error: "authentication failed".into() })
+    let mut prefetch_workouts: Vec<fitbod::Workout> = db.fetch_recently_active_user_workouts().await.unwrap();
+    prefetch_workouts.sort_unstable_by_key(|x| (x.user_id, x.start_time));
+    let n_workouts = prefetch_workouts.len();
+    let mut n_users_cached = 0;
+    for (user_id, user_workouts) in &prefetch_workouts.into_iter().group_by(|x| x.user_id) {
+        n_users_cached += 1;
+        let mut user_workouts: Vec<Workout> = user_workouts.collect();
+        cache.cache_workouts(user_id, &mut user_workouts[..]);
     }
 
-    //Ok::<T, Rejection>(parsed_body)
-    Ok::<T, ErrorMsg>(parsed_body)
+    println!("cached {} workouts from {} users ({} users total) in {:?}",
+        n_workouts.thousands_sep(),
+        n_users_cached.thousands_sep(),
+        n_users.thousands_sep(),
+        Instant::now() - init_start,
+    );
 }
 
-async fn insert_workouts(
-    req: &[Workout],
-    workouts: &UserWorkouts,
-    pool: &Pool<Postgres>,
-) -> Vec<NewWorkoutResponse> {
-    if req.is_empty() { return vec![] }
-
-    let user_id = req[0].user_id;
-
-    assert!(req.iter().skip(1).all(|x| x.user_id == user_id));
-
-    let mut to_insert = Vec::new();
-    let mut results = Vec::new();
-
-    {
-        let mut lock = workouts.write().unwrap();
-        let cache = lock.entry(user_id)
-            .or_default();
-
-        for workout in req {
-            let exists = cache.get(&workout.start_time)
-                .map(|xs| xs.iter().any(|x| workout.workout_id == x.workout_id))
-                .unwrap_or(false);
-
-            if exists {
-                results.push(NewWorkoutResponse::Success { workout_id: workout.workout_id });
-            } else {
-                cache.entry(workout.start_time)
-                    .or_default()
-                    .push(workout.clone());
-                to_insert.push((workout.user_id, workout.workout_id, workout.start_time, workout.end_time));
-            }
-        }
-    }
-
-    let mut tx = match pool.begin().await {
-        Ok(tx) => tx,
-        Err(e) => {
-            results.extend({
-                to_insert.iter().map(|x| {
-                    NewWorkoutResponse::Error {
-                        workout_id: x.1,
-                        err_code: 501,
-                        msg: format!("failed to create database transaction: {}", e),
-                    }
-                })
-            });
-            return results
-        }
-    };
-
-    for &(uid, wid, start, end) in &to_insert {
-        tx.execute(
-            sqlx::query(
-                "insert into workouts (user_id, workout_id, start_time, end_time) values ($1, $2, $3, $4)"
-            )
-                .bind(uid)
-                .bind(wid)
-                .bind(start)
-                .bind(end)
-        ).await.unwrap();
-    }
-
-    match tx.commit().await {
-        Ok(_) => {
-            results.extend({
-                to_insert.iter().map(|x| {
-                    NewWorkoutResponse::Success { workout_id: x.1 }
-                })
-            });
-        }
-        Err(e) => {
-            results.extend({
-                to_insert.iter().map(|x| {
-                    NewWorkoutResponse::Error {
-                        workout_id: x.1,
-                        err_code: 502,
-                        msg: format!("database insert transaction failed: {}", e),
-                    }
-                })
-            });
-        }
-    };
-    results
-}
-
-async fn fetch_workouts(
-    req: &ListWorkoutsRequest,
-    workouts: &UserWorkouts,
-    pool: &Pool<Postgres>,
-) -> Result<Vec<ListWorkoutsItem>, ErrorMsg> {
-    let start = req.start.unwrap_or_else(|| Utc.ymd(1970, 1, 1).and_hms(0, 0, 0));
-    let end = req.end.unwrap_or_else(|| Utc.ymd(2142, 7, 27).and_hms(0, 0, 0));
-    let limit = req.limit.unwrap_or(1024 * 1024);
-    let cached: Vec<ListWorkoutsItem> = workouts.read().unwrap()
-        .get(&req.user_id)
-        .into_iter()
-        .flat_map(|kv| {
-            kv.range(start .. end)
-                .flat_map(|(_, vs)| {
-                    vs.iter().map(|v| ListWorkoutsItem::from(v))
-                })
-        })
-        .rev()
-        .take(limit)
-        .collect();
-
-    if ! cached.is_empty() { return Ok(cached) }
-
-    let workout_rows: Vec<(Uuid, DateTime<Utc>, DateTime<Utc>)> = sqlx::query_as(
-            "select workout_id, start_time, end_time \
-             from workouts \
-             where user_id = $1")
-        .bind(req.user_id)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| {
-            ErrorMsg { status: 500, error: format!("database query failed: {}", e)}
-        })?;
-
-    let mut cache = workouts.write().unwrap();
-
-    let entry = cache.entry(req.user_id)
-        .or_default();
-
-    let items: Vec<_> = workout_rows.into_iter()
-        .map(|(workout_id, start, end)| {
-            entry.entry(start)
-                .or_default()
-                .push(Workout {
-                    user_id: req.user_id,
-                    workout_id,
-                    start_time: start,
-                    end_time: end,
-                });
-
-            ListWorkoutsItem {
-                workout_id,
-                date: start.date().naive_local(),
-                duration_minutes: ((end - start).num_seconds() as f64 / 60.0).round() as u32,
-            }
-        }).collect();
-
-    println!("cached {} items retrieved from db for user {}", items.len(), req.user_id);
-
-    Ok(items)
-}
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let run_start = Instant::now();
     dotenv::dotenv().ok();
+
+    let db_url = std::env::var("DATABASE_URL")
+        .ok()
+        .unwrap_or_else(|| "postgres://localhost:5432/fitbod".to_string());
 
     let rt  = Runtime::new()?;
 
-    let keys = UserKeys::default();
-    let workouts = UserWorkouts::default();
-
     rt.block_on(async {
-        let pool = Pool::<Postgres>::connect("postgres://localhost:5432/fitbod").await.unwrap();
-        let users: Vec<(Uuid, Vec<u8>)> = sqlx::query_as("select user_id, key from users").fetch_all(&pool).await.unwrap();
+        let cache = fitbod::cache::Cache::default();
+        let db = fitbod::db::DataBase::new(&db_url).await.unwrap();
 
-        {
-            let mut keys = keys.write().unwrap();
-            for (user_id, key) in users {
-                assert_eq!(key.len(), 32);
-                let key: [u8; 32] = key.try_into().unwrap();
-                keys.insert(user_id, key);
-            }
-        }
+        init_cache(&cache, &db).await;
 
-        let mut workouts_from_recently_active_users: Vec<(Uuid, Uuid, DateTime<Utc>, DateTime<Utc>)> =
-            sqlx::query_as(
-                "select w.user_id, w.workout_id, w.start_time, w.end_time from workouts w \
-                 where w.user_id in ( \
-                     select distinct(user_id) from workouts \
-                     where start_time >= now() - interval '7 days' \
-                 ) and w.start_time > now() - interval '90 days' \
-                 limit 1000000"
-            ).fetch_all(&pool).await.unwrap();
-        workouts_from_recently_active_users.sort_unstable_by_key(|x| (x.0, x.2)); // sort by (user_id, start_time)
-        let n_workouts = workouts_from_recently_active_users.len();
-        {
-            let mut workouts = workouts.write().unwrap();
-            for (user_id, workout_id, start_time, end_time) in workouts_from_recently_active_users {
-                workouts.entry(user_id)
-                    .or_default()
-                    .entry(start_time)
-                    .or_default()
-                    .push(Workout { user_id, workout_id, start_time, end_time });
-            }
-        }
-
-        println!("cached {} workouts from {} users ({} users total) in {:?}",
-            n_workouts.thousands_sep(),
-            workouts.read().unwrap().len().thousands_sep(),
-            keys.read().unwrap().len().thousands_sep(),
-            Instant::now() - run_start,
-        );
-
-        let request_sig = warp::header::<String>(fitbod::SIG_HEADER);
-        let request_timestamp = warp::header::<String>(fitbod::TIMESTAMP_HEADER);
-        let required_headers = request_sig
-            .and(request_timestamp)
-            .or(warp::header::<String>("x-fitbod-god-mode"));
-
-        let get_keys = warp::any().map(move || keys.clone());
-        let get_workouts = warp::any().map(move || workouts.clone());
-        let get_pool = warp::any().map(move || pool.clone());
+        let cache = warp::any().map(move || cache.clone());
+        let db = warp::any().map(move || db.clone());
 
         let api_routes = warp::path("api")
             .and(warp::path("v1"))
             .and(warp::post())
-            .and(required_headers)
-            .and(get_keys)
-            .and(get_workouts)
-            .and(get_pool);
+            .and(cache)
+            .and(db);
 
         let list_workouts = api_routes.clone()
             .and(warp::path("workouts"))
             .and(warp::path("list"))
             .and(http_request())
-            .and_then(|_, keys, workouts, pool, req| async move {
-                match check_sig::<ListWorkoutsRequest>(&keys, &req) {
-                    Ok(list_req) => {
-                        let items = fetch_workouts(&list_req, &workouts, &pool)
-                            .await
-                            .unwrap();
-                        let list_resp = ListWorkoutsResponse {
-                            user_id: list_req.user_id(),
-                            n_items: items.len(),
-                            items,
-                        };
-                        Ok(warp::reply::json(&list_resp))
+            .and_then(|cache: fitbod::cache::Cache, db: fitbod::db::DataBase, http_req| async move {
+                match cache.parse_and_verify_http_request::<ListWorkoutsRequest>(&http_req) {
+                    Ok(req) => {
+                        match cache.get_cached_workouts(&req.user_id, req.start, req.end, req.limit) {
+                            Some(workouts) => {
+                                let items: Vec<_> = workouts.iter()
+                                    .map(|x| fitbod::api::ListWorkoutsItem::from(x))
+                                    .collect();
+                                let resp = ListWorkoutsResponse {
+                                    user_id: req.user_id,
+                                    n_items: items.len(),
+                                    items,
+                                };
+                                Ok(warp::reply::json(&resp))
+                            }
+
+                            None => {
+                                match db.fetch_user_workouts(&req.user_id).await {
+                                    Ok(mut workouts) if ! workouts.is_empty() => {
+                                        // cache db results
+                                        cache.cache_workouts(req.user_id, &mut workouts[..]);
+                                        // apply request filters to db results
+                                        workouts.sort_unstable_by(|a, b| a.start_time.cmp(&b.start_time));
+                                        let start   = req.start.unwrap_or_else(|| Utc.ymd(1970, 1, 1).and_hms(0, 0, 0));
+                                        let end     = req.end  .unwrap_or_else(|| Utc.ymd(2142, 7, 27).and_hms(0, 0, 0));
+                                        let limit   = req.limit.unwrap_or(usize::MAX);
+                                        let filtered: Vec<_> = workouts.into_iter()
+                                            .rev()
+                                            .filter(|x| {
+                                                x.start_time >= start
+                                                && x.end_time < end
+                                            })
+                                            .take(limit)
+                                            .map(|x| fitbod::api::ListWorkoutsItem::from(&x))
+                                            .collect();
+                                        let resp = ListWorkoutsResponse {
+                                            user_id: req.user_id,
+                                            n_items: filtered.len(),
+                                            items: filtered,
+                                        };
+                                        Ok(warp::reply::json(&resp))
+                                    }
+
+                                    Ok(empty) => {
+                                        assert!(empty.is_empty());
+                                        let resp = ListWorkoutsResponse {
+                                            user_id: req.user_id,
+                                            n_items: 0,
+                                            items: Vec::new(),
+                                        };
+                                        Ok(warp::reply::json(&resp))
+                                    }
+
+                                    Err(e) => {
+                                        Err(warp::reject::custom(ErrorMsg {
+                                            status: 500,
+                                            error: format!("database error: {}", e),
+                                        }))
+                                    }
+                                }
+
+                            }
+                        }
                     }
 
-                    Err(e) => Err(warp::reject::custom(e))
+                    Err(e) => {
+                        Err(warp::reject::custom(ErrorMsg {
+                            status: 400,
+                            error: format!("auth error: {:?}", e),
+                        }))
+                    }
                 }
             });
 
@@ -375,18 +194,45 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             .and(warp::path("workouts"))
             .and(warp::path("new"))
             .and(http_request())
-            .and_then(|_, keys, workouts, pool, req| async move {
-                match check_sig::<NewWorkoutsRequest>(&keys, &req) {
-                    Ok(req) => {
-                        let results = insert_workouts(&req.items, &workouts, &pool).await;
-                        Ok(warp::reply::json(&results))
+            .and_then(|cache: fitbod::cache::Cache, db: fitbod::db::DataBase, http_req| async move {
+                match cache.parse_and_verify_http_request::<NewWorkoutsRequest>(&http_req) {
+                    Ok(mut req) => {
+                        let unseen = cache.cache_workouts(req.user_id, &mut req.items[..]);
+
+                        if ! unseen.is_empty() {
+                            match db.insert_workouts(&unseen).await {
+                                Ok(_) => Ok(warp::reply::with_status(warp::reply::reply(), http::StatusCode::NO_CONTENT)),
+
+                                Err(e) => {
+                                    Err(warp::reject::custom(ErrorMsg {
+                                        status: 500,
+                                        error: format!("database error: {}", e),
+                                    }))
+                                }
+                            }
+                        } else {
+                            Ok(warp::reply::with_status(warp::reply::reply(), http::StatusCode::NO_CONTENT))
+                        }
                     }
 
-                    Err(e) => Err(warp::reject::custom(e)),
+                    Err(e) => {
+                        Err(warp::reject::custom(ErrorMsg {
+                            status: 400,
+                            error: format!("auth error: {:?}", e),
+                        }))
+                    }
                 }
             });
-           
-        let routes = list_workouts.or(new_workouts);
+
+        let ping = warp::get()
+            .and(warp::path("ping"))
+            .map(|| { 
+                warp::reply::with_status(warp::reply::reply(), http::StatusCode::NO_CONTENT)
+            });
+          
+        let routes = list_workouts
+            .or(new_workouts)
+            .or(ping);
 
         warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
     });

@@ -33,6 +33,7 @@ rand = "0.8"
 http = "0.2"
 bytes = "1"
 pretty_toa = "1"
+itertools = "0.10"
 
 [features]
 default = []
