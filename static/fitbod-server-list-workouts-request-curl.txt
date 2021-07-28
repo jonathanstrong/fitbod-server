@@ -1,0 +1,1 @@
+curl -H 'x-fitbod-access-signature: ORD6SOnKHOaXAGYQ5I/Ibi1L77WFEKJKxVu3F6oC9+H6HDP75/7Hu76HCPApIAdbJBwYX1Qypuc52+jdZn9FAw==' -H 'x-fitbod-access-timestamp: 1627507858' --data '{"user_id":"afbd7a78-d85c-4f22-aaae-6174cb890233","start":null,"end":null,"limit":null}' 127.0.0.1:4242/api/v1/workouts/list

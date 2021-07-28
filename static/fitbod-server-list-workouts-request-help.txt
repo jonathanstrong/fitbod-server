@@ -1,0 +1,22 @@
+fitbod-server-list-workouts-request 0.1.0
+print example http request for /api/v1/workouts/list endpoint to stdout
+
+USAGE:
+    fitbod-server list-workouts-request [FLAGS] [OPTIONS]
+
+FLAGS:
+        --curl       output curl command instead of http request text
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -c, --connect <connect>                  for --curl mode, what address to connect to to send request [default:
+                                             127.0.0.1:4242]
+        --email <email>                      pick user by email instead of user_id. this will search the --users-csv-
+                                             path data to find the correct UUID by email
+        --end <end>                          filter results by end (YYYY-MM-DD)
+        --host <host>                        value of http host header [default: fitbod.jstrong.dev]
+        --limit <limit>                      specify limit to request
+        --start <start>                      filter results by end (YYYY-MM-DD)
+        --user-id <user-id>                  defaults to a user id randomly chosen from the file
+    -u, --users-csv-path <users-csv-path>     [default: var/example-users.csv]

@@ -1,0 +1,12 @@
+fitbod-server-run 0.1.0
+run the server, listening on the provided address for incoming http requests
+
+USAGE:
+    fitbod-server run <ADDR>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+ARGS:
+    <ADDR>    api server address to listen on

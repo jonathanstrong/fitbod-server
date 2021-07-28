@@ -1,0 +1,22 @@
+fitbod 0.1.0
+Jonathan Strong <jonathan.strong@gmail.com>
+fitbod api example server
+
+DATABASE_URL env var must be present with postgres connection info
+
+USAGE:
+    fitbod-server <SUBCOMMAND>
+
+FLAGS:
+    -h, --help       
+            Prints help information
+
+    -V, --version    
+            Prints version information
+
+
+SUBCOMMANDS:
+    help                     Prints this message or the help of the given subcommand(s)
+    list-workouts-request    print example http request for /api/v1/workouts/list endpoint to stdout
+    new-workouts-request     print example http request for /api/v1/workouts/new endpoint to stdout
+    run                      run the server, listening on the provided address for incoming http requests

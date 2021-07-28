@@ -41,3 +41,15 @@ rebuild:
     just cargo clean
     just update
     just test
+
+build-api-server-docs:
+    just debug-build fitbod-server
+    ./target/debug/fitbod-server --help > static/fitbod-server-main-help.txt
+    ./target/debug/fitbod-server run --help > static/fitbod-server-run-help.txt
+    ./target/debug/fitbod-server list-workouts-request --help > static/fitbod-server-list-workouts-request-help.txt
+    ./target/debug/fitbod-server new-workouts-request --help > static/fitbod-server-new-workouts-request-help.txt
+    ./target/debug/fitbod-server list-workouts-request > static/fitbod-server-list-workouts-request-http.txt
+    ./target/debug/fitbod-server list-workouts-request --curl > static/fitbod-server-list-workouts-request-curl.txt
+    just cargo run --bin generate-api-docs
+
+# eval "$(./target/debug/fitbod-server list-workouts-request --curl) -s" | python3 -m json.tool > static/fitbod-server-list-workouts-request-curl-pretty-json.txt

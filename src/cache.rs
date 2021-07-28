@@ -17,12 +17,12 @@ pub struct Cache {
     buf: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AuthError {
     UserNotFound(Uuid),
     MissingHeader(&'static str),
     InvalidSignature,
-    ParseError,
+    ParseError(String),
 }
 
 impl Cache {
@@ -50,7 +50,7 @@ impl Cache {
         where T: UserId + for<'de> Deserialize<'de>
     {
         let parsed: T = serde_json::from_slice(body)
-            .map_err(|_| AuthError::ParseError)?;
+            .map_err(|e| AuthError::ParseError(format!("failed to parse request body: {}", e)))?;
 
         let user_id = parsed.user_id();
 
@@ -63,7 +63,7 @@ impl Cache {
         where T: UserId + for<'de> Deserialize<'de>
     {
         let parsed: T = serde_json::from_slice(&req.body().slice(..))
-            .map_err(|_| AuthError::ParseError)?;
+            .map_err(|e| AuthError::ParseError(format!("failed to parse request body: {}", e)))?;
 
         if req.headers().get("x-fitbod-god-mode").is_some() {
             if self.key_exists(&parsed.user_id()) {

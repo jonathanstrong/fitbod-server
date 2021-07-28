@@ -8,6 +8,13 @@ const API_DOCS_TEMPLATE: &str = include_str!("../static/api-documentation.tera.m
 const OUTPUT_PATH: &str = "./README.md";
 const SCHEMA_SQL: &str = include_str!("../sql/schema-postgresql.sql");
 
+const HELP_MAIN: &str = include_str!("../static/fitbod-server-main-help.txt");
+const HELP_RUN: &str = include_str!("../static/fitbod-server-run-help.txt");
+const HELP_LIST_REQ: &str = include_str!("../static/fitbod-server-list-workouts-request-help.txt");
+const HELP_NEW_REQ: &str = include_str!("../static/fitbod-server-new-workouts-request-help.txt");
+const HELP_LIST_REQ_HTTP: &str = include_str!("../static/fitbod-server-list-workouts-request-http.txt");
+const HELP_LIST_REQ_CURL: &str = include_str!("../static/fitbod-server-list-workouts-request-curl.txt");
+
 fn main() -> Result<(), io::Error> {
     let mut tera = tera::Tera::default();
     tera.add_raw_template("api-documentation.md", API_DOCS_TEMPLATE).unwrap();
@@ -18,6 +25,12 @@ fn main() -> Result<(), io::Error> {
     ctx.insert("sig_header", SIG_HEADER);
     ctx.insert("timestamp_header", TIMESTAMP_HEADER);
     ctx.insert("schema_sql", SCHEMA_SQL);
+    ctx.insert("fitbod_server_main_help", HELP_MAIN);
+    ctx.insert("fitbod_server_run_help", HELP_RUN);
+    ctx.insert("fitbod_server_list_req_help", HELP_LIST_REQ);
+    ctx.insert("fitbod_server_new_req_help", HELP_NEW_REQ);
+    ctx.insert("fitbod_server_list_req_http", HELP_LIST_REQ_HTTP);
+    ctx.insert("fitbod_server_list_req_curl", HELP_LIST_REQ_CURL);
 
     let user_id = Uuid::new_v4();
     let workout_id = Uuid::new_v4();
@@ -26,13 +39,15 @@ fn main() -> Result<(), io::Error> {
     let start_time = Utc::now();
     let end_time = start_time + chrono::Duration::minutes(55);
 
-    let new_workout_req = NewWorkoutRequest {
+    let new_workout_req = fitbod::api::NewWorkoutsRequest {
         user_id,
-        items: vec![Workout {
-            user_id,
-            workout_id,
-            start_time,
-            end_time,
+        items: vec![
+            Workout {
+                user_id,
+                workout_id,
+                start_time,
+                end_time,
+            }
         ],
     };
 

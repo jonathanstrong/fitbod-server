@@ -1,17 +1,154 @@
-# fitbod api takehome
+# fitbod api
 
 *Generated {{current_time}}*
 
-## how to generate this document
+## Overview
+
+This repo contains code for a JSON-based api server that responds primarily to two endpoints:
+
+- `/api/v1/workouts/new`
+- `/api/v1/workouts/list`
+
+Code is in Rust, using the [warp](https://github.com/seanmonstar/warp) web framework (uses tokio async runtime under the hood).
+
+#### Significant departures from instructions and other design notes
+
+- API requests are signed for authentication (See "Authentication" section). For debugging purposes including `x-fitbod-god-mode` header will skip authenticating request signatures
+- Schema stores `start_time` and `end_time` of workouts, not durations as in the `workout.csv` example file
+- Users are assigned a UUID `user_id` and this is the primary means of identifying them in requests (not email)
+- Architecture can be described as application + cache in one layer. Data is retrieved from db once and kept in memory, subsequent requests fetch from RAM. See #Design section for discussion.
+
+## Usage
+
+#### How to generate this document
 
 ```console
-$ cargo run --bin generate-api-docs --features tera
+$ cargo run --bin generate-api-docs
 ```
 
 `generate-api-docs` generates JSON and other examples and renders a template (`static/api-documentation.tera.md`)
 using those outputs.
 
-## authentication
+#### How to run the tests
+
+```console
+cargo test
+```
+
+#### How to build the server
+
+```console
+cargo build --bin fitbod-server --release
+```
+
+#### `fitbod-server --help`
+
+for cli menu, first build server via `cargo build --bin fitbod-server --release`.
+
+```console
+$ ./target/release/fitbod-server --help
+{{ fitbod_server_main_help }}
+```
+`fitbod-server run`:
+
+```console
+$ ./target/release/fitbod-server run --help
+{{ fitbod_server_main_help }}
+```
+
+#### How to generate signed example api requests
+
+`fitbod-server list-workouts-request`:
+
+```console
+$ ./target/release/fitbod-server list-workouts-request --help
+{{ fitbod_server_list_req_help }}
+```
+
+Output with default params:
+
+```console
+$ ./target/release/fitbod-server list-workouts-request
+{{ fitbod_server_list_req_http }}
+```
+
+`--curl` mode:
+
+```console
+$ ./target/release/fitbod-server list-workouts-request --curl
+{{ fitbod_server_list_req_curl }}
+```
+
+`eval`ing `--curl` mode output:
+
+Note: server must be running for this to work.
+
+```console
+$ eval "$(./target/release/fitbod-server list-workouts-request --curl) -s" | python3 -m json.tool
+```
+
+#### Justfile
+
+project includes a [justfile](https://github.com/casey/just) with additional functionality:
+
+```console
+just --list
+```
+
+## Api Endpoints
+
+#### HTTP Request: `POST /api/{{api_version}}/workouts/new`
+
+Save one or more new workouts.
+
+Requests to this endpoint are idempotent, so long as the `workout_id` field remains consistent across
+multiple requests. Distinct `workout_id` values will result in multiple workouts saved.
+
+**JSON Request Body Example:**
+
+```json
+{{new_workout_request_json}}
+```
+
+A successful request will return an empty `204 No Content` response from the server.
+
+Failed request will return either `400` or `500` status code with short message describing error.
+
+#### HTTP Request: `POST /api/{{api_version}}/workouts/list`
+
+Retrieve a list of most recent workouts, with optional filter parameters.
+
+- specifying `start` will return only workouts that occured at or after `start`
+- specifying `end` will return only workouts that occured before `end`
+- specifying `limit` will return only the last (most recent) *n* entries
+- for `start` and `end` parameters, datetimes should be represented as strings in RFC3339
+  format (e.g. "2021-07-23T05:58:44.867020774Z")
+
+**JSON Request Body Example:**
+
+```json
+{{ list_req_json }}
+```
+
+Optional fields: `start`, `end`, `limit`:
+
+```json
+{{ list_req_opt_json }}
+```
+
+Optional fields may also be omitted:
+
+```json
+{{ only_user_id_json }}
+```
+
+**JSON Response Body Example:**
+
+```json
+{{ list_resp_json }}
+```
+
+## Authentication
 
 The authentication process used here is realistic but does not contain all of the component parts that would be required.
 
@@ -69,106 +206,6 @@ assert!( crypto::ed25519::verify(signature_contents.as_bytes(), pub_key, &sig[..
 ```
 
 The above example is also included in code as an automated test (`check_ed25519_sig_example_in_api_docs`).
-
-## Api Endpoints
-
-#### HTTP Request: `POST /api/{{api_version}}/workouts/new`
-
-Save one or more new workouts. A single new workout should be represented as a list of one item.
-
-Requests to this endpoint are idempotent, so long as the `workout_id` field remains consistent across
-multiple requests. Distinct `workout_id` values will result in multiple workouts saved.
-
-**JSON Request Body Example:**
-
-```json
-{{new_workout_request_json}}
-```
-
-**JSON Response Body Example (Success):**
-
-- `workout_id`: matches value of submitted request
-
-```json
-{{new_workout_success_resp_json}}
-```
-
-**JSON Response Body Example (Error):**
-
-- `workout_id`: matches value of submitted request
-- `err_code`: numeric identifier for the kind of error encountered. this number will remain
-   stable across updates and other chnages to `/api/{{api_version}}` endpoints
-- `msg`: a short description of the error for diagnostic purposes. this message may change
-   at any time
-
-```json
-{{new_workout_err_resp_json}}
-```
-
-#### HTTP Request: `POST /api/{{api_version}}/workouts/list`
-
-Retrieve a list of most recent workouts, with optional filter parameters.
-
-- specifying `start` will return only workouts that occured at or after `start`
-- specifying `end` will return only workouts that occured before `end`
-- specifying `limit` will return only the last (most recent) *n* entries
-- for `start` and `end` parameters, datetimes should be represented as strings in RFC3339
-  format (e.g. "2021-07-23T05:58:44.867020774Z")
-
-**JSON Request Body Example:**
-
-```json
-{{ list_req_json }}
-```
-
-Optional fields: `start`, `end`, `limit`:
-
-```json
-{{ list_req_opt_json }}
-```
-
-Optional fields may also be omitted:
-
-```json
-{{ only_user_id_json }}
-```
-
-**JSON Response Body Example:**
-
-```json
-{{ list_resp_json }}
-```
-
-#### HTTP/Websocket Request: `POST /api/{{api_version}}/events`
-
-Subscribe to a websocket feed of events pertaining to a user.
-
-Server will emit new events, but will not read or listen for any data sent from the client.
-
-A websocket frame may contain multiple events. New types of events may be added, but the structure
-of existing messages (as determined by `event_kind` field) will remain stable.
-
-To unsubscribe, simply close the websocket connection.
-
-**JSON Request Body Example:**
-
-```json
-{{ only_user_id_json }}
-```
-
-**Response Examples:**
-
-New workout:
-
-```json
-{{new_workout_json}}
-```
-
-Dopamine shot (encouraging message in alerts panel):
-
-```json
-{{dopamine_shot_json}}
-```
 
 ## schema
 

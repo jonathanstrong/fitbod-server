@@ -99,5 +99,12 @@ impl DataBase {
 
         Ok(())
     }
+
+    /// reference to db connection pool, for performing adhoc queries, etc. note: tried to do this
+    /// as an "execute" method that takes a query, but that proved super impossible to figure out
+    /// the signature for.
+    pub fn pool(&self) -> &Pool<Postgres> {
+        &self.pool
+    }
 }
 
