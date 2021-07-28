@@ -4,10 +4,11 @@
 
 ## Overview
 
-This repo contains code for a JSON-based api server that responds primarily to two endpoints:
+This repo contains code for a JSON-based api server that responds to the following endpoints:
 
-- `/api/v1/workouts/new`
-- `/api/v1/workouts/list`
+- `POST /api/v1/workouts/new`
+- `POST /api/v1/workouts/list`
+- `GET /api/v1/workouts/ping`
 
 Code is in Rust, using the [warp](https://github.com/seanmonstar/warp) web framework (uses tokio async runtime under the hood).
 
@@ -87,6 +88,8 @@ Note: server must be running for this to work.
 $ eval "$(./target/release/fitbod-server list-workouts-request --curl) -s" | python3 -m json.tool
 ```
 
+See also: "God mode" for skipping auth checks via `x-fitbod-god-mode` header.
+
 #### Justfile
 
 project includes a [justfile](https://github.com/casey/just) with additional functionality:
@@ -148,6 +151,10 @@ Optional fields may also be omitted:
 {{ list_resp_json }}
 ```
 
+#### HTTP Request: `GET /api/{{api_version}}/ping`
+
+Used to check if server is alive. Does not perform authentication on request.
+
 ## Authentication
 
 The authentication process used here is realistic but does not contain all of the component parts that would be required.
@@ -207,7 +214,17 @@ assert!( crypto::ed25519::verify(signature_contents.as_bytes(), pub_key, &sig[..
 
 The above example is also included in code as an automated test (`check_ed25519_sig_example_in_api_docs`).
 
+#### "God mode"
+
+There is a special header which prompts the server to skip request authentication for debugging purposes:
+
+```console
+$ curl -H 'x-fitbod-god-mode: 1' --data '{"user_id":"3a2cbc79-00e5-4598-a5b2-74c5059724af"}' http://127.0.0.1:4242/api/v1/workouts/list
+```
+
 ## schema
+
+The biggest change I made, compared to the implied schema in `user.csv` and `workout.csv` provided by fitbod, is in storing `start_time` and `end_time` of a workout instead of duration in minutes. The rationale for this is that duration can easily be calculated from the start and end times of a workout, and storing the start and end times gives a much richer picture of the user's behavior.
 
 postgresql-flavored database schema:
 
@@ -215,9 +232,29 @@ postgresql-flavored database schema:
 {{ schema_sql }}
 ```
 
+## design
+
+`fitbod-server` acts as both the "application" and "cache" layer, keeping an in-memory copy of data it receives in sync with the database
+to enable high performance requests.
+
+This design, which I have used in several situations previously, has the following advantages and disadvantages:
+
+**Advantages:**
+
+- high performance on single machine: this server, as is, can easily handle 5,000 requests per second for 1 million users and 10 million+ workouts. 
+- serving data from RAM avoids network/serialization overhead of retrieving from separate cache server.
+- mitigates database bottlenecks: the key to high performacne in this design is limiting how often the database is queried. Inserts are checked against in-memory cache to exclude any data that has already been written to database (i.e. instead of "upsert", exclude previously inserted data before query is sent, and possibly avoid some queries completely). Data is only retrieved once from database then kept for serving subsequent requests from memory.
+- allows complex cache invalidation logic: it is often difficult to fit cache invalidation logic that is natural in the context of an application into the cache invalidation patterns offered by a given datastore or cache. By merging application and cache, this problem is mitigated.
+
+**Disadvantages:**
+
+- server is stateful, horizontal scaling becomes more difficult: generally application servers are designed to be stateless, which facilitates effortless horizontal scaling. For instance, a Rails application could not implement this design, as stateless requests are very baked into its design. However, in practice, stateless application layer leaves more heavy lifting the database and cache layers, which are still not easily scaled horizontally, so there is similar problem at a different point. Also, many times "horizontal scaling" is merely a mechanism to acheive concurrency, while the `fitbod-server` already has concurrency via threading.
+- precludes use of popular frameworks: many web frameworks are premised on the idea of stateless requests, and would not be suitable for this design.
+- updating database externally to api server can result in api server being out of sync (see section below):
+
 #### syncronization between api server and database (important)
 
-Api server is not designed to remain perfectly in sync if database is modified by external services. The server stores (i.e. caches)
+`fitbod-server` is not designed to remain perfectly in sync if database is modified by external services. The server stores (i.e. caches)
 a good deal of application data in memory during its operation, updating that state as new data arrives via http requests. It does
 not pull data from database on every request, only if it is needed.
 

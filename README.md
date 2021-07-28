@@ -1,13 +1,14 @@
 # fitbod api
 
-*Generated Wed, 28 Jul 2021 21:31:03 +0000*
+*Generated Wed, 28 Jul 2021 21:59:15 +0000*
 
 ## Overview
 
-This repo contains code for a JSON-based api server that responds primarily to two endpoints:
+This repo contains code for a JSON-based api server that responds to the following endpoints:
 
-- `/api/v1/workouts/new`
-- `/api/v1/workouts/list`
+- `POST /api/v1/workouts/new`
+- `POST /api/v1/workouts/list`
+- `GET /api/v1/workouts/ping`
 
 Code is in Rust, using the [warp](https://github.com/seanmonstar/warp) web framework (uses tokio async runtime under the hood).
 
@@ -139,10 +140,10 @@ POST /api/v1/workouts/list HTTP/1.1
 host: fitbod.jstrong.dev 
 content-type: application/json
 content-length: 87
-x-fitbod-access-signature: hcim2VLsRX2Mvqa9SHfgbBvyTgn37MkbLn1XXs/KS7p+ssqrlA+QvZFKmH9DlUTlIRWPrKt3DBkFcVXIfr6NAg==
-x-fitbod-access-timestamp: 1627507858
+x-fitbod-access-signature: ntVaMvz5VnrLnW56eRJm4XhvxxkXT6jKHVwV5OU5HrnWR0cGT38l5Q+qkYDUMe/EyO2lPQ8Vlz74P0K1k4G5Bw==
+x-fitbod-access-timestamp: 1627509549
 
-{"user_id":"6cefe9d3-963e-4a24-ade2-e51b596c74dc","start":null,"end":null,"limit":null}
+{"user_id":"cbc94e9e-c6a3-428e-92a8-910fb11d0879","start":null,"end":null,"limit":null}
 
 ```
 
@@ -150,7 +151,7 @@ x-fitbod-access-timestamp: 1627507858
 
 ```console
 $ ./target/release/fitbod-server list-workouts-request --curl
-curl -H 'x-fitbod-access-signature: ORD6SOnKHOaXAGYQ5I/Ibi1L77WFEKJKxVu3F6oC9+H6HDP75/7Hu76HCPApIAdbJBwYX1Qypuc52+jdZn9FAw==' -H 'x-fitbod-access-timestamp: 1627507858' --data '{"user_id":"afbd7a78-d85c-4f22-aaae-6174cb890233","start":null,"end":null,"limit":null}' 127.0.0.1:4242/api/v1/workouts/list
+curl -H 'x-fitbod-access-signature: V7C7TTjhZej+TUfL1H8FNEGH1oDqaDUn6/UAuh2fh+hvTGcs8lXlcAT4H/0mda7y/XQvSUmCznJ7DefpV5CFDg==' -H 'x-fitbod-access-timestamp: 1627509549' --data '{"user_id":"e737c528-a07b-4278-9e1e-51db35da994f","start":null,"end":null,"limit":null}' 127.0.0.1:4242/api/v1/workouts/list
 
 ```
 
@@ -161,6 +162,8 @@ Note: server must be running for this to work.
 ```console
 $ eval "$(./target/release/fitbod-server list-workouts-request --curl) -s" | python3 -m json.tool
 ```
+
+See also: "God mode" for skipping auth checks via `x-fitbod-god-mode` header.
 
 #### Justfile
 
@@ -184,13 +187,13 @@ multiple requests. Distinct `workout_id` values will result in multiple workouts
 ```json
 [
   {
-    "user_id": "ce24e5a9-b7fb-407f-b46e-e2f8aa4956b4",
+    "user_id": "5ef60319-e886-456d-a780-8d8f9f691f07",
     "items": [
       {
-        "workout_id": "e3b627d7-cf01-44ed-be1d-f64425ab6a9e",
-        "user_id": "ce24e5a9-b7fb-407f-b46e-e2f8aa4956b4",
-        "start_time": "2021-07-28T21:31:03.822548904Z",
-        "end_time": "2021-07-28T22:26:03.822548904Z"
+        "workout_id": "a2f0f3be-d577-4027-8bc9-08efa6da21da",
+        "user_id": "5ef60319-e886-456d-a780-8d8f9f691f07",
+        "start_time": "2021-07-28T21:59:15.042119746Z",
+        "end_time": "2021-07-28T22:54:15.042119746Z"
       }
     ]
   }
@@ -215,9 +218,9 @@ Retrieve a list of most recent workouts, with optional filter parameters.
 
 ```json
 {
-  "user_id": "ce24e5a9-b7fb-407f-b46e-e2f8aa4956b4",
-  "start": "2021-07-07T21:31:03.822705088Z",
-  "end": "2021-07-28T21:31:03.822709180Z",
+  "user_id": "5ef60319-e886-456d-a780-8d8f9f691f07",
+  "start": "2021-07-07T21:59:15.042304561Z",
+  "end": "2021-07-28T21:59:15.042309047Z",
   "limit": 10
 }
 ```
@@ -226,7 +229,7 @@ Optional fields: `start`, `end`, `limit`:
 
 ```json
 {
-  "user_id": "ce24e5a9-b7fb-407f-b46e-e2f8aa4956b4",
+  "user_id": "5ef60319-e886-456d-a780-8d8f9f691f07",
   "start": null,
   "end": null,
   "limit": null
@@ -237,7 +240,7 @@ Optional fields may also be omitted:
 
 ```json
 {
-  "user_id": "ce24e5a9-b7fb-407f-b46e-e2f8aa4956b4"
+  "user_id": "5ef60319-e886-456d-a780-8d8f9f691f07"
 }
 ```
 
@@ -245,17 +248,21 @@ Optional fields may also be omitted:
 
 ```json
 {
-  "user_id": "ce24e5a9-b7fb-407f-b46e-e2f8aa4956b4",
+  "user_id": "5ef60319-e886-456d-a780-8d8f9f691f07",
   "n_items": 1,
   "items": [
     {
-      "workout_id": "e3b627d7-cf01-44ed-be1d-f64425ab6a9e",
+      "workout_id": "a2f0f3be-d577-4027-8bc9-08efa6da21da",
       "date": "2021-07-28",
       "duration_minutes": 55
     }
   ]
 }
 ```
+
+#### HTTP Request: `GET /api/v1/ping`
+
+Used to check if server is alive. Does not perform authentication on request.
 
 ## Authentication
 
@@ -316,7 +323,17 @@ assert!( crypto::ed25519::verify(signature_contents.as_bytes(), pub_key, &sig[..
 
 The above example is also included in code as an automated test (`check_ed25519_sig_example_in_api_docs`).
 
+#### "God mode"
+
+There is a special header which prompts the server to skip request authentication for debugging purposes:
+
+```console
+$ curl -H 'x-fitbod-god-mode: 1' --data '{"user_id":"3a2cbc79-00e5-4598-a5b2-74c5059724af"}' http://127.0.0.1:4242/api/v1/workouts/list
+```
+
 ## schema
+
+The biggest change I made, compared to the implied schema in `user.csv` and `workout.csv` provided by fitbod, is in storing `start_time` and `end_time` of a workout instead of duration in minutes. The rationale for this is that duration can easily be calculated from the start and end times of a workout, and storing the start and end times gives a much richer picture of the user's behavior.
 
 postgresql-flavored database schema:
 
@@ -423,9 +440,29 @@ COMMIT;
 
 ```
 
+## design
+
+`fitbod-server` acts as both the "application" and "cache" layer, keeping an in-memory copy of data it receives in sync with the database
+to enable high performance requests.
+
+This design, which I have used in several situations previously, has the following advantages and disadvantages:
+
+**Advantages:**
+
+- high performance on single machine: this server, as is, can easily handle 5,000 requests per second for 1 million users and 10 million+ workouts. 
+- serving data from RAM avoids network/serialization overhead of retrieving from separate cache server.
+- mitigates database bottlenecks: the key to high performacne in this design is limiting how often the database is queried. Inserts are checked against in-memory cache to exclude any data that has already been written to database (i.e. instead of "upsert", exclude previously inserted data before query is sent, and possibly avoid some queries completely). Data is only retrieved once from database then kept for serving subsequent requests from memory.
+- allows complex cache invalidation logic: it is often difficult to fit cache invalidation logic that is natural in the context of an application into the cache invalidation patterns offered by a given datastore or cache. By merging application and cache, this problem is mitigated.
+
+**Disadvantages:**
+
+- server is stateful, horizontal scaling becomes more difficult: generally application servers are designed to be stateless, which facilitates effortless horizontal scaling. For instance, a Rails application could not implement this design, as stateless requests are very baked into its design. However, in practice, stateless application layer leaves more heavy lifting the database and cache layers, which are still not easily scaled horizontally, so there is similar problem at a different point. Also, many times "horizontal scaling" is merely a mechanism to acheive concurrency, while the `fitbod-server` already has concurrency via threading.
+- precludes use of popular frameworks: many web frameworks are premised on the idea of stateless requests, and would not be suitable for this design.
+- updating database externally to api server can result in api server being out of sync (see section below):
+
 #### syncronization between api server and database (important)
 
-Api server is not designed to remain perfectly in sync if database is modified by external services. The server stores (i.e. caches)
+`fitbod-server` is not designed to remain perfectly in sync if database is modified by external services. The server stores (i.e. caches)
 a good deal of application data in memory during its operation, updating that state as new data arrives via http requests. It does
 not pull data from database on every request, only if it is needed.
 
