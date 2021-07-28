@@ -4,7 +4,7 @@ use sqlx::postgres::Postgres;
 use chrono::prelude::*;
 use uuid::Uuid;
 use crate::auth::PublicKey;
-use crate::Workout;
+use crate::{Workout, User};
 
 /// wrapper around postgres connection pool to encapsulate db-related functionality
 #[derive(Clone)]
@@ -78,5 +78,26 @@ impl DataBase {
         Ok(())
     }
 
+    pub async fn insert_users(&self, users: &[User]) -> Result<(), sqlx::Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let created = Utc::now();
+
+        for u in users {
+            tx.execute(
+                sqlx::query(
+                    "insert into users (user_id, email, key, created) values ($1, $2, $3, $4)"
+                )
+                    .bind(u.user_id)
+                    .bind(&u.email[..])
+                    .bind(&u.key[..])
+                    .bind(created)
+            ).await?;
+        }
+
+        tx.commit().await?;
+
+        Ok(())
+    }
 }
 
