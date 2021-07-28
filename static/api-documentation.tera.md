@@ -269,6 +269,10 @@ api server, just that the api server could respond with stale data in that case 
 
 ## performance
 
-See sister-repo `fitbod-test` and its `stress-test` subcommand for more details. This was a request on a beefy, but older workstation (2x 8-core xeons):
+`fitbod-server` can comfortably handle 5,000 requests per second with much larger data than what was provided in `user.csv` and `workout.csv`.
+
+See sister-repo `fitbod-test` and its `stress-test` subcommand for more details. 
+
+These charts are from a `stress-test` run on my dev machine, a beefy, but older workstation (2x 8-core xeons), with postgres, client and server all running on the same machine (overloaded cpu, but zero network overhead):
 
 ![perf-dashboard](/static/stress-test-sustained-6k-req-per-sec-with-1-million-users-and-12-million-workouts-30ms-p99.png)
