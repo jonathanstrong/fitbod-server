@@ -53,3 +53,6 @@ build-api-server-docs:
     just cargo run --bin generate-api-docs
 
 # eval "$(./target/debug/fitbod-server list-workouts-request --curl) -s" | python3 -m json.tool > static/fitbod-server-list-workouts-request-curl-pretty-json.txt
+
+show-users:
+    psql -d fitbod -c 'select * from users limit 50;'
