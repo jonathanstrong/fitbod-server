@@ -1,6 +1,6 @@
 # fitbod api
 
-*Generated Wed, 28 Jul 2021 21:59:15 +0000*
+*Generated Wed, 28 Jul 2021 22:08:16 +0000*
 
 ## Overview
 
@@ -76,28 +76,18 @@ SUBCOMMANDS:
 
 ```console
 $ ./target/release/fitbod-server run --help
-fitbod 0.1.0
-Jonathan Strong <jonathan.strong@gmail.com>
-fitbod api example server
-
-DATABASE_URL env var must be present with postgres connection info
+fitbod-server-run 0.1.0
+run the server, listening on the provided address for incoming http requests
 
 USAGE:
-    fitbod-server <SUBCOMMAND>
+    fitbod-server run <ADDR>
 
 FLAGS:
-    -h, --help       
-            Prints help information
+    -h, --help       Prints help information
+    -V, --version    Prints version information
 
-    -V, --version    
-            Prints version information
-
-
-SUBCOMMANDS:
-    help                     Prints this message or the help of the given subcommand(s)
-    list-workouts-request    print example http request for /api/v1/workouts/list endpoint to stdout
-    new-workouts-request     print example http request for /api/v1/workouts/new endpoint to stdout
-    run                      run the server, listening on the provided address for incoming http requests
+ARGS:
+    <ADDR>    api server address to listen on
 
 ```
 
@@ -140,10 +130,10 @@ POST /api/v1/workouts/list HTTP/1.1
 host: fitbod.jstrong.dev 
 content-type: application/json
 content-length: 87
-x-fitbod-access-signature: ntVaMvz5VnrLnW56eRJm4XhvxxkXT6jKHVwV5OU5HrnWR0cGT38l5Q+qkYDUMe/EyO2lPQ8Vlz74P0K1k4G5Bw==
-x-fitbod-access-timestamp: 1627509549
+x-fitbod-access-signature: PMOnwWa4B5Dn2lV6c0hegFP1NW1uATK8iOCDKl6Jtt4rcOXPIrbDG+njs+uYLXsVhbZLpnG3vyQBFKbacekODg==
+x-fitbod-access-timestamp: 1627510091
 
-{"user_id":"cbc94e9e-c6a3-428e-92a8-910fb11d0879","start":null,"end":null,"limit":null}
+{"user_id":"afbd7a78-d85c-4f22-aaae-6174cb890233","start":null,"end":null,"limit":null}
 
 ```
 
@@ -151,13 +141,13 @@ x-fitbod-access-timestamp: 1627509549
 
 ```console
 $ ./target/release/fitbod-server list-workouts-request --curl
-curl -H 'x-fitbod-access-signature: V7C7TTjhZej+TUfL1H8FNEGH1oDqaDUn6/UAuh2fh+hvTGcs8lXlcAT4H/0mda7y/XQvSUmCznJ7DefpV5CFDg==' -H 'x-fitbod-access-timestamp: 1627509549' --data '{"user_id":"e737c528-a07b-4278-9e1e-51db35da994f","start":null,"end":null,"limit":null}' 127.0.0.1:4242/api/v1/workouts/list
+curl -H 'x-fitbod-access-signature: XNb+VxsnOWEe0ZyJ0cjc4WqBH/bNTBiFnNOoFRTcywlObpv6YWhaX+DmjYFVdcOQATj2mQu92fe5Ul3XsRJ9BA==' -H 'x-fitbod-access-timestamp: 1627510091' --data '{"user_id":"6a81d3b2-4000-4422-aba3-41f21b528531","start":null,"end":null,"limit":null}' 127.0.0.1:4242/api/v1/workouts/list
 
 ```
 
-`eval`ing `--curl` mode output:
+`eval` + `--curl` mode:
 
-Note: server must be running for this to work.
+Note: server must be running.
 
 ```console
 $ eval "$(./target/release/fitbod-server list-workouts-request --curl) -s" | python3 -m json.tool
@@ -187,13 +177,13 @@ multiple requests. Distinct `workout_id` values will result in multiple workouts
 ```json
 [
   {
-    "user_id": "5ef60319-e886-456d-a780-8d8f9f691f07",
+    "user_id": "6d3753f6-87cf-444a-95e6-1321e3254e13",
     "items": [
       {
-        "workout_id": "a2f0f3be-d577-4027-8bc9-08efa6da21da",
-        "user_id": "5ef60319-e886-456d-a780-8d8f9f691f07",
-        "start_time": "2021-07-28T21:59:15.042119746Z",
-        "end_time": "2021-07-28T22:54:15.042119746Z"
+        "workout_id": "0ce7b037-5a53-444b-a83b-7a149a856153",
+        "user_id": "6d3753f6-87cf-444a-95e6-1321e3254e13",
+        "start_time": "2021-07-28T22:08:16.329673537Z",
+        "end_time": "2021-07-28T23:03:16.329673537Z"
       }
     ]
   }
@@ -218,9 +208,9 @@ Retrieve a list of most recent workouts, with optional filter parameters.
 
 ```json
 {
-  "user_id": "5ef60319-e886-456d-a780-8d8f9f691f07",
-  "start": "2021-07-07T21:59:15.042304561Z",
-  "end": "2021-07-28T21:59:15.042309047Z",
+  "user_id": "6d3753f6-87cf-444a-95e6-1321e3254e13",
+  "start": "2021-07-07T22:08:16.329856130Z",
+  "end": "2021-07-28T22:08:16.329860231Z",
   "limit": 10
 }
 ```
@@ -229,7 +219,7 @@ Optional fields: `start`, `end`, `limit`:
 
 ```json
 {
-  "user_id": "5ef60319-e886-456d-a780-8d8f9f691f07",
+  "user_id": "6d3753f6-87cf-444a-95e6-1321e3254e13",
   "start": null,
   "end": null,
   "limit": null
@@ -240,7 +230,7 @@ Optional fields may also be omitted:
 
 ```json
 {
-  "user_id": "5ef60319-e886-456d-a780-8d8f9f691f07"
+  "user_id": "6d3753f6-87cf-444a-95e6-1321e3254e13"
 }
 ```
 
@@ -248,11 +238,11 @@ Optional fields may also be omitted:
 
 ```json
 {
-  "user_id": "5ef60319-e886-456d-a780-8d8f9f691f07",
+  "user_id": "6d3753f6-87cf-444a-95e6-1321e3254e13",
   "n_items": 1,
   "items": [
     {
-      "workout_id": "a2f0f3be-d577-4027-8bc9-08efa6da21da",
+      "workout_id": "0ce7b037-5a53-444b-a83b-7a149a856153",
       "date": "2021-07-28",
       "duration_minutes": 55
     }
@@ -474,3 +464,9 @@ database during initialization.
 
 There is no anticipated risk of data corruption or other serious problems from modifying the database externally to the 
 api server, just that the api server could respond with stale data in that case (relative to the database).
+
+## performance
+
+See sister-repo `fitbod-test` and its `stress-test` subcommand for more details. This was a request on a beefy, but older workstation (2x 8-core xeons):
+
+![perf-dashboard](/static/stress-test-sustained-6k-req-per-sec-with-1-million-users-and-12-million-workouts-30ms-p99.png)

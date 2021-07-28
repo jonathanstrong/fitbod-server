@@ -54,7 +54,7 @@ $ ./target/release/fitbod-server --help
 
 ```console
 $ ./target/release/fitbod-server run --help
-{{ fitbod_server_main_help }}
+{{ fitbod_server_run_help }}
 ```
 
 #### How to generate signed example api requests
@@ -80,9 +80,9 @@ $ ./target/release/fitbod-server list-workouts-request --curl
 {{ fitbod_server_list_req_curl }}
 ```
 
-`eval`ing `--curl` mode output:
+`eval` + `--curl` mode:
 
-Note: server must be running for this to work.
+Note: server must be running.
 
 ```console
 $ eval "$(./target/release/fitbod-server list-workouts-request --curl) -s" | python3 -m json.tool
@@ -266,3 +266,9 @@ database during initialization.
 
 There is no anticipated risk of data corruption or other serious problems from modifying the database externally to the 
 api server, just that the api server could respond with stale data in that case (relative to the database).
+
+## performance
+
+See sister-repo `fitbod-test` and its `stress-test` subcommand for more details. This was a request on a beefy, but older workstation (2x 8-core xeons):
+
+![perf-dashboard](/static/stress-test-sustained-6k-req-per-sec-with-1-million-users-and-12-million-workouts-30ms-p99.png)
