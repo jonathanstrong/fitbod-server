@@ -11,6 +11,7 @@ pub mod cache;
 pub mod db;
 
 /// user representation matching `users` db table
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct User {
     pub user_id: Uuid,
     pub email: String,
