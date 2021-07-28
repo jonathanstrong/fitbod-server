@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 use itertools::Itertools;
 use pretty_toa::ThousandsSep;
 use tokio::runtime::Runtime;
-use warp::{Filter, Rejection, filters::path::FullPath};
+use warp::{Filter, Rejection, Reply, filters::path::FullPath};
 use fitbod::{Workout, ListWorkoutsRequest, ListWorkoutsResponse, NewWorkoutsRequest};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,23 +15,23 @@ struct ErrorMsg {
 
 impl warp::reject::Reject for ErrorMsg {}
 
-// async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
-//     let code;
-//     let message;
-//     if let Some(UserNotFound(user_id)) = err.find() {
-//         code = StatusCode::UNAUTHORIZED;
-//         message = format!("user_id not found: {}", user_id);
-//     } else {
-//         code = StatusCode::NOT_FOUND;
-//         message = "not found".to_string();
-//     };
-//     let json = warp::reply::json(&ErrorMsg {
-//         status: code.as_u16(),
-//         error: message,
-//     });
-// 
-//     Ok(warp::reply::with_status(json, code))
-// }
+async fn handle_rejection(err: Rejection) -> Result<impl Reply, std::convert::Infallible> {
+    let code;
+    let message;
+    if let Some(ErrorMsg { status, error }) = err.find() {
+        code = http::StatusCode::from_u16(*status).unwrap();
+        message = error.to_string();
+    } else {
+        code = http::StatusCode::NOT_FOUND;
+        message = "not found".to_string();
+    };
+    let json = warp::reply::json(&ErrorMsg {
+        status: code.as_u16(),
+        error: message,
+    });
+
+    Ok(warp::reply::with_status(json, code))
+}
 
 fn http_request() -> impl Filter<Extract = (http::Request<bytes::Bytes>,), Error = Rejection> + Copy {
     warp::any()
@@ -232,7 +232,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
           
         let routes = list_workouts
             .or(new_workouts)
-            .or(ping);
+            .or(ping)
+            .recover(handle_rejection);
 
         warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
     });
