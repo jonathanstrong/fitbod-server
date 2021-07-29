@@ -1,6 +1,6 @@
 # fitbod api
 
-*Generated Thu, 29 Jul 2021 01:30:19 +0000*
+*Generated Thu, 29 Jul 2021 01:43:46 +0000*
 
 ## Overview
 
@@ -8,7 +8,7 @@ This repo contains code for a JSON-based api server that responds to the followi
 
 - `POST /api/v1/workouts/new`
 - `POST /api/v1/workouts/list`
-- `GET /api/v1/workouts/ping`
+- `GET /api/v1/ping`
 
 Code is in Rust, using the [warp](https://github.com/seanmonstar/warp) web framework (uses tokio async runtime under the hood).
 
@@ -130,10 +130,10 @@ POST /api/v1/workouts/list HTTP/1.1
 host: fitbod.jstrong.dev 
 content-type: application/json
 content-length: 87
-x-fitbod-access-signature: 2IsNm0ezF9uKqRgEFcqxYzEU7n34SSFbKcNDd7MchS+p3JuLG89Q9a33LNE4yIdBsISyRtD/6SQRPDMe2NpDBw==
-x-fitbod-access-timestamp: 1627522213
+x-fitbod-access-signature: x37sovPb4vCq7wgPZ8FrSenCFNi7CwAmuXcgGMk98AFNuF3b4ireVBE9P6SZxdHCs/TqMRC9UJrCO3VMfEX3Aw==
+x-fitbod-access-timestamp: 1627523022
 
-{"user_id":"cbc94e9e-c6a3-428e-92a8-910fb11d0879","start":null,"end":null,"limit":null}
+{"user_id":"3680a82b-adab-4541-8cab-e603d010051d","start":null,"end":null,"limit":null}
 
 ```
 
@@ -141,7 +141,7 @@ x-fitbod-access-timestamp: 1627522213
 
 ```console
 $ ./target/release/fitbod-server list-workouts-request --curl
-curl -H 'x-fitbod-access-signature: 2IsNm0ezF9uKqRgEFcqxYzEU7n34SSFbKcNDd7MchS+p3JuLG89Q9a33LNE4yIdBsISyRtD/6SQRPDMe2NpDBw==' -H 'x-fitbod-access-timestamp: 1627522213' --data '{"user_id":"cbc94e9e-c6a3-428e-92a8-910fb11d0879","start":null,"end":null,"limit":null}' https://fitbod.jstrong.dev/api/v1/workouts/list
+curl -H 'x-fitbod-access-signature: 7etbdYrkpUwWtGDuejenM7k1jIqLVv3bww3NQ+MH50VnLyYZkyyWZS7kdEWyzVvbFd4YUUhfZunm0wLABAzHDg==' -H 'x-fitbod-access-timestamp: 1627523022' --data '{"user_id":"183cdbba-3956-4c5f-9e14-2a0134dd2835","start":null,"end":null,"limit":null}' https://fitbod.jstrong.dev/api/v1/workouts/list
 
 ```
 
@@ -177,13 +177,13 @@ multiple requests. Distinct `workout_id` values will result in multiple workouts
 ```json
 [
   {
-    "user_id": "ac5e2c84-420c-48ff-bbd4-abb000c71b41",
+    "user_id": "4a9d9940-e91a-420a-9130-d0e553558183",
     "items": [
       {
-        "workout_id": "bbd6fd70-5849-4694-bcd8-4ec13db5e275",
-        "user_id": "ac5e2c84-420c-48ff-bbd4-abb000c71b41",
-        "start_time": "2021-07-29T01:30:19.068218173Z",
-        "end_time": "2021-07-29T02:25:19.068218173Z"
+        "workout_id": "ee57b5be-1ae5-49ed-ab69-048b9e170fbe",
+        "user_id": "4a9d9940-e91a-420a-9130-d0e553558183",
+        "start_time": "2021-07-29T01:43:46.947463012Z",
+        "end_time": "2021-07-29T02:38:46.947463012Z"
       }
     ]
   }
@@ -208,9 +208,9 @@ Retrieve a list of most recent workouts, with optional filter parameters.
 
 ```json
 {
-  "user_id": "ac5e2c84-420c-48ff-bbd4-abb000c71b41",
-  "start": "2021-07-08T01:30:19.068380376Z",
-  "end": "2021-07-29T01:30:19.068384321Z",
+  "user_id": "4a9d9940-e91a-420a-9130-d0e553558183",
+  "start": "2021-07-08T01:43:46.947665106Z",
+  "end": "2021-07-29T01:43:46.947668038Z",
   "limit": 10
 }
 ```
@@ -219,7 +219,7 @@ Optional fields: `start`, `end`, `limit`:
 
 ```json
 {
-  "user_id": "ac5e2c84-420c-48ff-bbd4-abb000c71b41",
+  "user_id": "4a9d9940-e91a-420a-9130-d0e553558183",
   "start": null,
   "end": null,
   "limit": null
@@ -230,7 +230,7 @@ Optional fields may also be omitted:
 
 ```json
 {
-  "user_id": "ac5e2c84-420c-48ff-bbd4-abb000c71b41"
+  "user_id": "4a9d9940-e91a-420a-9130-d0e553558183"
 }
 ```
 
@@ -238,11 +238,11 @@ Optional fields may also be omitted:
 
 ```json
 {
-  "user_id": "ac5e2c84-420c-48ff-bbd4-abb000c71b41",
+  "user_id": "4a9d9940-e91a-420a-9130-d0e553558183",
   "n_items": 1,
   "items": [
     {
-      "workout_id": "bbd6fd70-5849-4694-bcd8-4ec13db5e275",
+      "workout_id": "ee57b5be-1ae5-49ed-ab69-048b9e170fbe",
       "date": "2021-07-29",
       "duration_minutes": 55
     }

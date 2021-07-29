@@ -8,7 +8,7 @@ This repo contains code for a JSON-based api server that responds to the followi
 
 - `POST /api/v1/workouts/new`
 - `POST /api/v1/workouts/list`
-- `GET /api/v1/workouts/ping`
+- `GET /api/v1/ping`
 
 Code is in Rust, using the [warp](https://github.com/seanmonstar/warp) web framework (uses tokio async runtime under the hood).
 
