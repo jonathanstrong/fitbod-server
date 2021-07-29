@@ -61,8 +61,8 @@ enum Opt {
         curl: bool,
 
         /// for --curl mode, what address to connect to to send request
-        #[structopt(short, long, default_value = "127.0.0.1:4242")]
-        connect: SocketAddr,
+        #[structopt(short, long, default_value = "https://fitbod.jstrong.dev")]
+        connect: String,
     },
 
     /// print example http request for /api/v1/workouts/new endpoint to stdout
@@ -94,8 +94,8 @@ enum Opt {
         curl: bool,
 
         /// for --curl mode, what address to connect to to send request
-        #[structopt(short, long, default_value = "127.0.0.1:4242")]
-        connect: SocketAddr,
+        #[structopt(short, long, default_value = "https://fitbod.jstrong.dev")]
+        connect: String,
     },
 }
 
@@ -329,17 +329,28 @@ fn run(db_url: &str, bind: SocketAddr) -> Result<(), Box<dyn std::error::Error>>
                 }
             });
 
-        let ping = warp::get()
-            .and(warp::path("ping"))
-            .map(|| { 
-                warp::reply::with_status(warp::reply::reply(), http::StatusCode::NO_CONTENT)
+        let base_ping = warp::get()
+            .and(warp::path("ping"));
+
+        let api_ping = warp::get()
+            .and(warp::path("api"))
+            .and(warp::path("v1"))
+            .and(warp::path("ping"));
+
+        let ping = base_ping.or(api_ping);
+
+        let god_mode_ping = ping.clone()
+            .and(warp::header::exact("x-fitbod-god-mode", "1"))
+            .map(|_| { 
+                "GOD MODE PONG!\n"
             });
+
+        let ping = god_mode_ping.or(ping.map(|_| "pong\n"));
           
         let routes = list_workouts
             .or(new_workouts)
             .or(ping)
-            .recover(handle_rejection)
-            .with(warp::trace::request());
+            .recover(handle_rejection);
 
         warp::serve(routes).run(bind).await;
     });
@@ -375,7 +386,7 @@ fn list_workouts_request(
     limit: Option<usize>,
     curl: bool,
     host: String,
-    addr: SocketAddr,
+    addr: String,
 ) {
     let mut keys = load_private_keys(users_csv_path);
     let user_id = user_id.unwrap_or_else(|| {
@@ -409,7 +420,7 @@ fn new_workouts_request(
     duration: u32,
     curl: bool,
     host: String,
-    addr: SocketAddr,
+    addr: String,
 ) {
     let mut keys = load_private_keys(users_csv_path);
     let user_id = user_id.unwrap_or_else(|| {
@@ -447,7 +458,7 @@ fn as_priv_key<T: AsRef<[u8]>>(bytes: T) -> fitbod::auth::PrivateKey {
     bytes.as_ref().try_into().unwrap()
 }
 
-fn example_api_req<T>(path: &str, req: &T, key: &fitbod::auth::PrivateKey, host: &str, curl: bool, addr: &SocketAddr)
+fn example_api_req<T>(path: &str, req: &T, key: &fitbod::auth::PrivateKey, host: &str, curl: bool, addr: &str)
     where T: Serialize
 {
     let req_json = serde_json::to_string(req).unwrap();
