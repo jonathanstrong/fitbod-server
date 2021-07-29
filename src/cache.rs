@@ -190,7 +190,7 @@ mod tests {
         assert!(matches!(res, Err(AuthError::InvalidSignature)));
 
         let res: Result<crate::api::ListWorkoutsRequest, AuthError> = cache.parse_and_verify_request(sig.as_bytes(), ts_str.as_bytes(), "invalid body".as_bytes());
-        assert!(matches!(res, Err(AuthError::ParseError)));
+        assert!(matches!(res, Err(AuthError::ParseError(_))));
     }
 
     #[test]
@@ -220,7 +220,7 @@ mod tests {
         let w2 = get_workout(t2);
 
         // cache [w0]
-        assert_eq!(cache.cache_workouts(user_id, &mut [w0.clone()][..]), vec![w0.workout_id]);
+        assert_eq!(cache.cache_workouts(user_id, &mut [w0.clone()][..]), vec![w0.clone()]);
         assert_eq!(cache.workouts_exist(&user_id), true);
         assert!(matches!(cache.n_cached_workouts(&user_id), Some(1)));
 
@@ -234,12 +234,12 @@ mod tests {
         assert_eq!(cache.get_cached_workouts(&user_id, None, Some(t0), None).unwrap(), Vec::new());
 
         // cache [w0, w1]
-        assert_eq!(cache.cache_workouts(user_id, &mut [w0.clone(), w1.clone()][..]), vec![w1.workout_id]);
+        assert_eq!(cache.cache_workouts(user_id, &mut [w0.clone(), w1.clone()][..]), vec![w1.clone()]);
         assert_eq!(cache.get_cached_workouts(&user_id, None, None, None).unwrap(), vec![w1.clone(), w0.clone()]);
         assert!(matches!(cache.n_cached_workouts(&user_id), Some(2)));
 
         // cache [w0, w1, w2]
-        assert_eq!(cache.cache_workouts(user_id, &mut [w0.clone(), w1.clone(), w2.clone()][..]), vec![w2.workout_id]);
+        assert_eq!(cache.cache_workouts(user_id, &mut [w0.clone(), w1.clone(), w2.clone()][..]), vec![w2.clone()]);
         assert_eq!(cache.get_cached_workouts(&user_id, None, None, None).unwrap(), vec![w2.clone(), w1.clone(), w0.clone()]);
         assert!(matches!(cache.n_cached_workouts(&user_id), Some(3)));
 
