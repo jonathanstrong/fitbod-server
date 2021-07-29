@@ -1,6 +1,6 @@
 # fitbod api
 
-*Generated Wed, 28 Jul 2021 22:08:16 +0000*
+*Generated Thu, 29 Jul 2021 01:30:19 +0000*
 
 ## Overview
 
@@ -110,7 +110,7 @@ FLAGS:
 
 OPTIONS:
     -c, --connect <connect>                  for --curl mode, what address to connect to to send request [default:
-                                             127.0.0.1:4242]
+                                             https://fitbod.jstrong.dev]
         --email <email>                      pick user by email instead of user_id. this will search the --users-csv-
                                              path data to find the correct UUID by email
         --end <end>                          filter results by end (YYYY-MM-DD)
@@ -130,10 +130,10 @@ POST /api/v1/workouts/list HTTP/1.1
 host: fitbod.jstrong.dev 
 content-type: application/json
 content-length: 87
-x-fitbod-access-signature: PMOnwWa4B5Dn2lV6c0hegFP1NW1uATK8iOCDKl6Jtt4rcOXPIrbDG+njs+uYLXsVhbZLpnG3vyQBFKbacekODg==
-x-fitbod-access-timestamp: 1627510091
+x-fitbod-access-signature: 2IsNm0ezF9uKqRgEFcqxYzEU7n34SSFbKcNDd7MchS+p3JuLG89Q9a33LNE4yIdBsISyRtD/6SQRPDMe2NpDBw==
+x-fitbod-access-timestamp: 1627522213
 
-{"user_id":"afbd7a78-d85c-4f22-aaae-6174cb890233","start":null,"end":null,"limit":null}
+{"user_id":"cbc94e9e-c6a3-428e-92a8-910fb11d0879","start":null,"end":null,"limit":null}
 
 ```
 
@@ -141,7 +141,7 @@ x-fitbod-access-timestamp: 1627510091
 
 ```console
 $ ./target/release/fitbod-server list-workouts-request --curl
-curl -H 'x-fitbod-access-signature: XNb+VxsnOWEe0ZyJ0cjc4WqBH/bNTBiFnNOoFRTcywlObpv6YWhaX+DmjYFVdcOQATj2mQu92fe5Ul3XsRJ9BA==' -H 'x-fitbod-access-timestamp: 1627510091' --data '{"user_id":"6a81d3b2-4000-4422-aba3-41f21b528531","start":null,"end":null,"limit":null}' 127.0.0.1:4242/api/v1/workouts/list
+curl -H 'x-fitbod-access-signature: 2IsNm0ezF9uKqRgEFcqxYzEU7n34SSFbKcNDd7MchS+p3JuLG89Q9a33LNE4yIdBsISyRtD/6SQRPDMe2NpDBw==' -H 'x-fitbod-access-timestamp: 1627522213' --data '{"user_id":"cbc94e9e-c6a3-428e-92a8-910fb11d0879","start":null,"end":null,"limit":null}' https://fitbod.jstrong.dev/api/v1/workouts/list
 
 ```
 
@@ -177,13 +177,13 @@ multiple requests. Distinct `workout_id` values will result in multiple workouts
 ```json
 [
   {
-    "user_id": "6d3753f6-87cf-444a-95e6-1321e3254e13",
+    "user_id": "ac5e2c84-420c-48ff-bbd4-abb000c71b41",
     "items": [
       {
-        "workout_id": "0ce7b037-5a53-444b-a83b-7a149a856153",
-        "user_id": "6d3753f6-87cf-444a-95e6-1321e3254e13",
-        "start_time": "2021-07-28T22:08:16.329673537Z",
-        "end_time": "2021-07-28T23:03:16.329673537Z"
+        "workout_id": "bbd6fd70-5849-4694-bcd8-4ec13db5e275",
+        "user_id": "ac5e2c84-420c-48ff-bbd4-abb000c71b41",
+        "start_time": "2021-07-29T01:30:19.068218173Z",
+        "end_time": "2021-07-29T02:25:19.068218173Z"
       }
     ]
   }
@@ -208,9 +208,9 @@ Retrieve a list of most recent workouts, with optional filter parameters.
 
 ```json
 {
-  "user_id": "6d3753f6-87cf-444a-95e6-1321e3254e13",
-  "start": "2021-07-07T22:08:16.329856130Z",
-  "end": "2021-07-28T22:08:16.329860231Z",
+  "user_id": "ac5e2c84-420c-48ff-bbd4-abb000c71b41",
+  "start": "2021-07-08T01:30:19.068380376Z",
+  "end": "2021-07-29T01:30:19.068384321Z",
   "limit": 10
 }
 ```
@@ -219,7 +219,7 @@ Optional fields: `start`, `end`, `limit`:
 
 ```json
 {
-  "user_id": "6d3753f6-87cf-444a-95e6-1321e3254e13",
+  "user_id": "ac5e2c84-420c-48ff-bbd4-abb000c71b41",
   "start": null,
   "end": null,
   "limit": null
@@ -230,7 +230,7 @@ Optional fields may also be omitted:
 
 ```json
 {
-  "user_id": "6d3753f6-87cf-444a-95e6-1321e3254e13"
+  "user_id": "ac5e2c84-420c-48ff-bbd4-abb000c71b41"
 }
 ```
 
@@ -238,12 +238,12 @@ Optional fields may also be omitted:
 
 ```json
 {
-  "user_id": "6d3753f6-87cf-444a-95e6-1321e3254e13",
+  "user_id": "ac5e2c84-420c-48ff-bbd4-abb000c71b41",
   "n_items": 1,
   "items": [
     {
-      "workout_id": "0ce7b037-5a53-444b-a83b-7a149a856153",
-      "date": "2021-07-28",
+      "workout_id": "bbd6fd70-5849-4694-bcd8-4ec13db5e275",
+      "date": "2021-07-29",
       "duration_minutes": 55
     }
   ]
@@ -467,6 +467,10 @@ api server, just that the api server could respond with stale data in that case 
 
 ## performance
 
-See sister-repo `fitbod-test` and its `stress-test` subcommand for more details. This was a request on a beefy, but older workstation (2x 8-core xeons):
+`fitbod-server` can comfortably handle 5,000 requests per second with much larger data than what was provided in `user.csv` and `workout.csv`.
+
+See sister-repo `fitbod-test` and its `stress-test` subcommand for more details. 
+
+These charts are from a `stress-test` run on my dev machine, a beefy, but older workstation (2x 8-core xeons), with postgres, client and server all running on the same machine (overloaded cpu, but zero network overhead):
 
 ![perf-dashboard](/static/stress-test-sustained-6k-req-per-sec-with-1-million-users-and-12-million-workouts-30ms-p99.png)

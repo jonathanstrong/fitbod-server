@@ -11,7 +11,7 @@ FLAGS:
 
 OPTIONS:
     -c, --connect <connect>                  for --curl mode, what address to connect to to send request [default:
-                                             127.0.0.1:4242]
+                                             https://fitbod.jstrong.dev]
         --email <email>                      pick user by email instead of user_id. this will search the --users-csv-
                                              path data to find the correct UUID by email
         --end <end>                          filter results by end (YYYY-MM-DD)
