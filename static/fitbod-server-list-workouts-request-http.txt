@@ -2,7 +2,7 @@ POST /api/v1/workouts/list HTTP/1.1
 host: fitbod.jstrong.dev 
 content-type: application/json
 content-length: 87
-x-fitbod-access-signature: 2IsNm0ezF9uKqRgEFcqxYzEU7n34SSFbKcNDd7MchS+p3JuLG89Q9a33LNE4yIdBsISyRtD/6SQRPDMe2NpDBw==
-x-fitbod-access-timestamp: 1627522213
+x-fitbod-access-signature: x37sovPb4vCq7wgPZ8FrSenCFNi7CwAmuXcgGMk98AFNuF3b4ireVBE9P6SZxdHCs/TqMRC9UJrCO3VMfEX3Aw==
+x-fitbod-access-timestamp: 1627523022
 
-{"user_id":"cbc94e9e-c6a3-428e-92a8-910fb11d0879","start":null,"end":null,"limit":null}
+{"user_id":"3680a82b-adab-4541-8cab-e603d010051d","start":null,"end":null,"limit":null}
